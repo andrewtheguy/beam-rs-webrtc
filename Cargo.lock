@@ -8871,7 +8871,7 @@ dependencies = [
 
 [[package]]
 name = "wormhole-common"
-version = "0.0.1-alpha6"
+version = "0.0.1"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -8900,7 +8900,7 @@ dependencies = [
 
 [[package]]
 name = "wormhole-rs"
-version = "0.0.1-alpha6"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "base64",
@@ -8921,7 +8921,7 @@ dependencies = [
 
 [[package]]
 name = "wormhole-rs-local"
-version = "0.0.1-alpha6"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -8935,7 +8935,7 @@ dependencies = [
 
 [[package]]
 name = "wormhole-rs-tor"
-version = "0.0.1-alpha6"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "arti-client",
@@ -8957,7 +8957,7 @@ dependencies = [
 
 [[package]]
 name = "wormhole-rs-webrtc"
-version = "0.0.1-alpha6"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "base64",

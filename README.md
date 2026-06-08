@@ -11,7 +11,7 @@ A secure, cross-platform, single-binary peer-to-peer file transfer tool with dir
 - **Resumable file transfers** - Interrupted file downloads can resume from where they left off
 - **File and folder transfers** - Send individual files or entire directories (automatically archived)
 - **Multiple transport modes** - iroh (recommended), Tor, and WebRTC
-- **Local-only transfers** - same-network transfers without internet via LAN addresses embedded in the beam code (`beam-rs send --local-only`)
+- **Local-only transfers** - same-network transfers without internet via mDNS discovery (`beam-rs send --local-only`)
 - **NAT traversal** - Automatic relay fallback for iroh; STUN for WebRTC
 - **Anonymous transfers** - Tor hidden services via `beam-rs-tor` for anonymity
 - **Cross-platform** - Standalone binary for macOS, Linux, and Windows
@@ -153,8 +153,7 @@ There are **two** ways to transfer without relying on the public internet:
 
 1) **LAN direct (recommended when both devices share a network)**
    - `beam-rs send --local-only`: iroh transport with relays disabled; the
-     sender's LAN addresses are embedded in the beam code and connected to
-     directly (mDNS as a fallback)
+     sender is discovered by mDNS and connected to directly
    - Fast, no internet required; share the printed beam code with the receiver
 
 2) **Manual WebRTC (when mDNS is blocked but peers still have direct network reachability)**
@@ -167,11 +166,9 @@ There are **two** ways to transfer without relying on the public internet:
 
 Use this mode for transfers on the same network (no internet required). It uses
 the same iroh transport and beam code as the default mode, but disables relays
-entirely: the sender embeds its LAN addresses in the beam code so the receiver
-connects directly, with mDNS kept as a fallback. (Embedding the addresses avoids
-relying on mDNS resolution, which is unreliable on some platforms such as
-macOS.) The receiver auto-detects local-only mode from the code (no flag
-needed).
+entirely: the beam code carries the sender endpoint ID without relay URLs, and
+the receiver resolves that endpoint on the LAN with mDNS. The receiver
+auto-detects local-only mode from the code (no flag needed).
 
 ```bash
 # Send locally

@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use futures::StreamExt;
 use iroh::{
+    dns::DnsResolver,
     Endpoint, EndpointAddr, RelayMap, RelayUrl, TransportAddr, Watcher,
     endpoint::{Connection, PathList, RecvStream, RelayMode, SendStream, presets},
 };
@@ -222,9 +223,8 @@ fn print_relay_info(relay_urls: &[String]) {
 /// The endpoint is configured with ALPN for beam transfers.
 /// Multiple relay URLs provide automatic failover based on latency.
 ///
-/// When `local_only` is set, relays are disabled entirely and the endpoint's
-/// own LAN addresses are embedded in the beam code (with mDNS kept as a
-/// fallback) — no internet or relay server is contacted.
+/// When `local_only` is set, relays are disabled entirely and the peer is
+/// discovered by mDNS — no internet or relay server is contacted.
 pub async fn create_sender_endpoint(relay_urls: Vec<String>, local_only: bool) -> Result<Endpoint> {
     let relay_mode = if local_only {
         eprintln!("Local-only mode (LAN direct, no relay)");
@@ -239,11 +239,17 @@ pub async fn create_sender_endpoint(relay_urls: Vec<String>, local_only: bool) -
     // only makes the ring backend available, it does not wire it in, and
     // rustls' global `install_default()` is not consulted.
     let crypto_provider = Arc::new(rustls::crypto::ring::default_provider());
-    let endpoint = Endpoint::builder(presets::Empty)
+    let mut builder = Endpoint::builder(presets::Empty)
         .crypto_provider(crypto_provider)
         .relay_mode(relay_mode)
         .alpns(vec![ALPN.to_vec()])
-        .address_lookup(MdnsAddressLookup::builder())
+        .address_lookup(MdnsAddressLookup::builder());
+
+    if local_only {
+        builder = builder.dns_resolver(local_only_dns_resolver());
+    }
+
+    let endpoint = builder
         .bind()
         .await
         .context("Failed to create endpoint")?;
@@ -251,7 +257,7 @@ pub async fn create_sender_endpoint(relay_urls: Vec<String>, local_only: bool) -
     if local_only {
         // `online()` waits for a home relay to connect, which never happens
         // with relays disabled. Instead wait until we have at least one direct
-        // address so the printed beam code is reachable on the LAN.
+        // address so mDNS has an address to advertise.
         wait_for_direct_address(&endpoint).await;
     } else {
         // Wait for endpoint to be online (connected to relay)
@@ -283,7 +289,7 @@ async fn wait_for_direct_address(endpoint: &Endpoint) {
     if tokio::time::timeout(ADDR_WAIT_TIMEOUT, wait).await.is_err() {
         eprintln!(
             "Warning: no local network address discovered within {:?}; \
-             the receiver may need a moment to find this sender.",
+             mDNS may not be able to advertise this sender yet.",
             ADDR_WAIT_TIMEOUT
         );
     }
@@ -296,8 +302,7 @@ async fn wait_for_direct_address(endpoint: &Endpoint) {
 /// Multiple relay URLs provide automatic failover based on latency.
 ///
 /// When `local_only` is set, relays are disabled entirely and the sender is
-/// reached via the LAN addresses embedded in the beam code (with mDNS as a
-/// fallback) — no internet or relay server is contacted.
+/// reached via mDNS — no internet or relay server is contacted.
 pub async fn create_receiver_endpoint(
     relay_urls: Vec<String>,
     local_only: bool,
@@ -315,10 +320,16 @@ pub async fn create_receiver_endpoint(
     // only makes the ring backend available, it does not wire it in, and
     // rustls' global `install_default()` is not consulted.
     let crypto_provider = Arc::new(rustls::crypto::ring::default_provider());
-    let endpoint = Endpoint::builder(presets::Empty)
+    let mut builder = Endpoint::builder(presets::Empty)
         .crypto_provider(crypto_provider)
         .relay_mode(relay_mode)
-        .address_lookup(MdnsAddressLookup::builder())
+        .address_lookup(MdnsAddressLookup::builder());
+
+    if local_only {
+        builder = builder.dns_resolver(local_only_dns_resolver());
+    }
+
+    let endpoint = builder
         .bind()
         .await
         .context("Failed to create endpoint")?;
@@ -326,24 +337,25 @@ pub async fn create_receiver_endpoint(
     Ok(endpoint)
 }
 
+/// Build a resolver for local-only endpoints without reading host DNS config.
+///
+/// iroh's default resolver reads the system resolver configuration during
+/// endpoint binding, even when relays are disabled. On macOS that can emit a
+/// warning when scoped resolver data contains a nameserver hickory cannot
+/// parse. Local-only mode does not need DNS; mDNS handles address lookup.
+fn local_only_dns_resolver() -> DnsResolver {
+    DnsResolver::builder().build()
+}
+
 /// Create a MinimalAddr from a full EndpointAddr.
 ///
-/// Only the first (currently-selected) relay URL is kept to minimize token size.
-/// IP addresses are normally stripped (they're discovered at connect time via
-/// relay or mDNS), but when `include_ip_addrs` is set — local-only mode — the
-/// endpoint's direct LAN addresses are embedded so the receiver can connect
-/// without relying on mDNS resolution.
-pub fn minimal_addr_from_endpoint(addr: &EndpointAddr, include_ip_addrs: bool) -> MinimalAddr {
+/// Only the first (currently-selected) relay URL is kept to minimize token size;
+/// direct IP addresses are discovered at connect time via relay or mDNS.
+pub fn minimal_addr_from_endpoint(addr: &EndpointAddr) -> MinimalAddr {
     let relay = addr.relay_urls().next().map(|r| r.to_string());
-    let ip_addrs = if include_ip_addrs {
-        addr.ip_addrs().map(|a| a.to_string()).collect()
-    } else {
-        Vec::new()
-    };
     MinimalAddr {
         id: addr.id.to_string(),
         relay,
-        ip_addrs,
     }
 }
 
@@ -360,22 +372,16 @@ pub fn minimal_addr_to_endpoint(addr: &MinimalAddr) -> Result<EndpointAddr> {
             .context("Failed to parse relay URL from beam code")?;
         endpoint_addr = endpoint_addr.with_relay_url(relay_url);
     }
-    for ip_str in &addr.ip_addrs {
-        let socket_addr = ip_str
-            .parse()
-            .with_context(|| format!("Failed to parse IP address from beam code: {ip_str}"))?;
-        endpoint_addr = endpoint_addr.with_ip_addr(socket_addr);
-    }
     Ok(endpoint_addr)
 }
 
 /// Generate a beam code from endpoint address
 /// Format: base64url(json(BeamToken))
 ///
-/// In `local_only` mode the endpoint's direct LAN addresses are embedded in the
-/// code so the receiver can connect without depending on mDNS resolution.
-pub fn generate_code(addr: &EndpointAddr, key: &[u8; 32], local_only: bool) -> Result<String> {
-    let minimal_addr = minimal_addr_from_endpoint(addr, local_only);
+/// Local-only codes carry an endpoint ID without a relay URL; the receiver
+/// resolves it via mDNS.
+pub fn generate_code(addr: &EndpointAddr, key: &[u8; 32]) -> Result<String> {
+    let minimal_addr = minimal_addr_from_endpoint(addr);
 
     let token = BeamToken {
         version: CURRENT_VERSION,
@@ -394,4 +400,24 @@ pub fn generate_code(addr: &EndpointAddr, key: &[u8; 32], local_only: bool) -> R
     let serialized = serde_json::to_vec(&token).context("Failed to serialize beam token")?;
 
     Ok(URL_SAFE_NO_PAD.encode(&serialized))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use beam_common::core::beam::parse_code;
+    use iroh::SecretKey;
+
+    #[test]
+    fn generated_local_only_code_omits_direct_ip_addresses() {
+        let key = [42u8; 32];
+        let addr = EndpointAddr::new(SecretKey::generate().public())
+            .with_ip_addr("192.168.1.10:4444".parse().unwrap());
+
+        let code = generate_code(&addr, &key).unwrap();
+        let token = parse_code(&code).unwrap();
+        let serialized = serde_json::to_value(&token.addr.unwrap()).unwrap();
+
+        assert!(serialized.get("ip_addrs").is_none());
+    }
 }

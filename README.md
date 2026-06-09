@@ -122,11 +122,17 @@ beam-rs-webrtc send /path/to/file
 # Send with custom relay
 beam-rs-webrtc send --relay wss://my-relay.com /path/to/file
 
+# Send using PIN
+beam-rs-webrtc send --pin /path/to/file
+
 # Receive with code from sender
 beam-rs-webrtc receive <BEAM_CODE>
 
 # Or prompt for code interactively
 beam-rs-webrtc receive
+
+# Receive using PIN
+beam-rs-webrtc receive --pin
 ```
 
 For copy/paste signaling when Nostr relays are unavailable, see [Manual Mode](#manual-mode).
@@ -144,6 +150,9 @@ beam-rs receive --code <BEAM_CODE>
 # Receive using PIN
 beam-rs receive --pin
 ```
+
+For WebRTC PIN mode, use `beam-rs-webrtc send --pin` and
+`beam-rs-webrtc receive --pin`.
 
 ---
 

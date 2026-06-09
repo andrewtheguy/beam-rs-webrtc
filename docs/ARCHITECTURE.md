@@ -15,9 +15,9 @@ beam-rs supports two main categories of transport:
 
 ## Transfer Flows
 
-### 1. Internet Transfers (Beam Code)
+### 1. iroh Transfers
 
-#### iroh Mode (Recommended) - QUIC / Direct + Relay
+#### Default iroh Mode (Recommended) - QUIC / Direct + Relay
 
 iroh uses a "hole punching" strategy that attempts direct connections via UDP/QUIC while simultaneously establishing a fallback path through a Relay (DERP) server.
 
@@ -62,6 +62,38 @@ sequenceDiagram
     Receiver->>Sender: 9. Send Encrypted ACK
 ```
 
+#### Local-only Mode (iroh with relays disabled)
+
+Local-only mode is designed for transfers on the same LAN without internet
+access. It is the **same** iroh transport and beam code as the default mode,
+with one difference: relays are disabled (`RelayMode::Disabled`). The sender
+waits for its own LAN addresses so mDNS has something to advertise, then prints
+a beam code containing the endpoint ID with no relay URL. The receiver
+auto-detects this mode from the missing relay URL and resolves the sender over
+mDNS. Local-only endpoints use a DNS resolver that does not read host DNS
+configuration, avoiding macOS scoped-resolver parse warnings in relay-free mode.
+
+```mermaid
+sequenceDiagram
+    participant Sender
+    participant Receiver
+
+    Sender->>Sender: 1. Bind iroh endpoint (RelayMode::Disabled)
+    Sender->>Sender: 2. Wait for a direct LAN address
+    Sender->>Sender: 3. Print beam code
+    Note over Sender: Beam code has endpoint id, no relay URL
+
+    Note over Sender: User shares beam code out-of-band
+
+    Receiver->>Receiver: 4. Parse code, detect no relay -> local-only
+    Receiver->>Sender: 5. Resolve by mDNS and connect directly over QUIC (ALPN beam-transfer/1)
+
+    Note over Sender,Receiver: From here identical to iroh mode
+    Sender->>Receiver: 6. Encrypted header / chunks / ACK (AES-256-GCM)
+```
+
+### 2. Tor Transfers
+
 #### Tor Mode
 
 ```mermaid
@@ -100,7 +132,9 @@ sequenceDiagram
     Receiver->>Sender: 9. Send Encrypted ACK
 ```
 
-#### WebRTC Mode
+### 3. WebRTC Transfers
+
+#### Default WebRTC Mode
 
 ```mermaid
 sequenceDiagram
@@ -200,67 +234,47 @@ sequenceDiagram
     Receiver->>Sender: 16. Send Encrypted ACK
 ```
 
-### 2. Local Transfers (LAN)
-
-#### Local-only Mode (iroh with relays disabled)
-
-Local-only mode is designed for transfers on the same LAN without internet
-access. It is the **same** iroh transport and beam code as the default mode,
-with one difference: relays are disabled (`RelayMode::Disabled`). The sender
-waits for its own LAN addresses so mDNS has something to advertise, then prints
-a beam code containing the endpoint ID with no relay URL. The receiver
-auto-detects this mode from the missing relay URL and resolves the sender over
-mDNS. Local-only endpoints use a DNS resolver that does not read host DNS
-configuration, avoiding macOS scoped-resolver parse warnings in relay-free mode.
-
-```mermaid
-sequenceDiagram
-    participant Sender
-    participant Receiver
-
-    Sender->>Sender: 1. Bind iroh endpoint (RelayMode::Disabled)
-    Sender->>Sender: 2. Wait for a direct LAN address
-    Sender->>Sender: 3. Print beam code
-    Note over Sender: Beam code has endpoint id, no relay URL
-
-    Note over Sender: User shares beam code out-of-band
-
-    Receiver->>Receiver: 4. Parse code, detect no relay -> local-only
-    Receiver->>Sender: 5. Resolve by mDNS and connect directly over QUIC (ALPN beam-transfer/1)
-
-    Note over Sender,Receiver: From here identical to iroh mode
-    Sender->>Receiver: 6. Encrypted header / chunks / ACK (AES-256-GCM)
-```
-
 ## Connection Types/Modes
 
-### iroh Mode (`beam-rs send`) - Recommended
+### Default iroh Mode (`beam-rs send`) - Recommended
 - **Transport**: QUIC / TLS 1.3
 - **Discovery**: Relay URL embedded in beam code + mDNS for local network.
 - **Relay**: iroh relays (DERP) - automatically used if direct P2P connection fails.
 - **Failover**: Uses multiple relays for redundancy; monitors latency to select the best path.
 - **Connection**: "Hole punching" attempts to establish a direct UDP connection; falls back to relay if NATs are strict.
 - **Protocol**: ALPN `beam-transfer/1`.
+- **PIN Support**: Yes (`beam-rs send --pin` / `beam-rs receive --pin`)
 - **Encryption**: Always AES-256-GCM encrypted at the application layer, plus QUIC/TLS encryption.
 
 ### Local-only Mode (`beam-rs send --local-only`)
 - **Transport**: QUIC / TLS 1.3 (same as iroh mode)
 - **Discovery**: mDNS address lookup; relays disabled (`RelayMode::Disabled`)
 - **Key Exchange**: Beam code (carries the AES key and an endpoint address with no relay URL)
+- **PIN Support**: No; PIN exchange uses Nostr, which requires internet access
 - **Encryption**: Always AES-256-GCM at the application layer, plus QUIC/TLS encryption
 - **Reachability**: The sender waits for at least one direct address before printing the code so mDNS can advertise it (it cannot wait for a relay, since relays are disabled). Incompatible with `--pin` and `--relay-url`.
 
 ### Tor Mode (`beam-rs-tor send`)
 - **Transport**: Tor Onion Services
 - **Discovery**: Onion Address
+- **PIN Support**: No
 - **Encryption**: Tor circuit encryption plus mandatory AES-256-GCM at the application layer.
 
-### WebRTC Mode (`beam-rs-webrtc send`)
+### Default WebRTC Mode (`beam-rs-webrtc send`)
 - **Transport**: WebRTC DataChannel over DTLS
-- **Discovery**: Nostr relays for SDP/ICE signaling (or manual copy-paste)
+- **Discovery**: Nostr relays for SDP/ICE signaling
 - **NAT Traversal**: ICE with multiple public STUN servers (Google + Cloudflare)
+- **PIN Support**: Yes (`beam-rs-webrtc send --pin` / `beam-rs-webrtc receive --pin`)
 - **Encryption**: DTLS (WebRTC built-in) + AES-256-GCM at application layer
 - **Fallback**: Try iroh mode (with automatic relay) if direct P2P fails. Use `beam-rs-tor` for anonymity
+
+### WebRTC Manual Mode (`beam-rs-webrtc send-manual`)
+- **Transport**: WebRTC DataChannel over DTLS
+- **Discovery**: Manual copy/paste offer and answer payloads containing SDP and ICE candidates
+- **NAT Traversal**: ICE with multiple public STUN servers (Google + Cloudflare)
+- **Encryption**: DTLS (WebRTC built-in) + AES-256-GCM at application layer
+- **Key Exchange**: Manual offer payload (carries the AES key and must be shared over a trusted channel)
+- **PIN Support**: No; manual mode is a two-payload offer/answer exchange and does not use Nostr PIN lookup
 
 ## Security Model
 
@@ -287,11 +301,19 @@ WebRTC mode uses two encryption layers for defense in depth:
 - Per-transfer random key embedded in the beam code
 
 ### PIN-based Key Exchange (PIN Mode)
-PIN mode (`beam-rs send --pin`) exchanges the beam code through Nostr keyed by a short PIN, then runs a SPAKE2 handshake over the iroh stream to derive the session key. It requires internet (Nostr) and is therefore not available with `--local-only`.
+PIN mode is available for the default iroh transport (`beam-rs send --pin`) and
+the default WebRTC transport (`beam-rs-webrtc send --pin`). It is not available
+for iroh `--local-only`, Tor, or WebRTC manual mode.
+
+PIN mode exchanges the beam code through Nostr keyed by a short PIN, then runs
+a SPAKE2 handshake over the established transport to derive the session key. For
+iroh this SPAKE2 handshake runs over the QUIC stream; for WebRTC it runs over
+the DataChannel stream. PIN mode requires internet access for Nostr lookup.
+
 - **Format**: 12 characters (11 random + 1 checksum) from an unambiguous charset; the checksum catches typos before attempting a connection.
 - **Key Derivation**: The PIN is fed into SPAKE2 (with transfer_id as context) to derive the session key.
 - **Security**: SPAKE2 prevents offline dictionary attacks and rejects wrong transfer_id.
-- **Confidentiality**: All data (headers, chunks, and control signals) is AES-256-GCM encrypted with the SPAKE2-derived key, on top of the QUIC/TLS transport.
+- **Confidentiality**: All data (headers, chunks, and control signals) is AES-256-GCM encrypted with the SPAKE2-derived key, on top of the transport encryption.
 
 ### Tor Mode Security
 - **Anonymity**: Sender/Receiver IPs hidden.

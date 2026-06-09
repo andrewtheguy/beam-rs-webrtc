@@ -52,18 +52,22 @@ This guide describes common scenarios where `beam-rs` shines and which mode to u
 **Scenario**: You are sending a file from a laptop to a friend's phone, or to a remote server console where you cannot easily copy and paste the long "Beam Code". Typing a huge base64 string is impossible.
 
 **Solution A**: **PIN Mode** (Recommended when copy-paste is hard)
-- **Why**: Uses a short 12-character PIN instead of a long code. The PIN is exchanged via Nostr relays, while the actual file transfer uses iroh transport. Requires internet for the Nostr exchange.
+- **Why**: Uses a short 12-character PIN instead of a long code. The PIN is exchanged via Nostr relays, while the actual file transfer uses either default iroh or default WebRTC transport. Requires internet for the Nostr exchange.
 - **Command**:
   ```bash
-  # Sender (iroh transport with PIN exchange)
+  # Sender (default iroh transport with PIN exchange)
   beam-rs send --pin /path/to/file
 
-  # Receiver (unified command, prompts for PIN)
+  # Receiver (default iroh transport, prompts for PIN)
   beam-rs receive --pin
+
+  # Or use default WebRTC transport with PIN exchange
+  beam-rs-webrtc send --pin /path/to/file
+  beam-rs-webrtc receive --pin
   ```
 - **Experience**:
   1. Sender sees: `PIN: A1b2C3d4E5f6` (example)
-  2. Receiver runs `beam-rs receive --pin` and types `A1b2C3d4E5f6`.
+  2. Receiver runs the matching `receive --pin` command and types `A1b2C3d4E5f6`.
 
 **Solution B**: **Local-only Mode** (Same network, no internet)
 - **Why**: Stays entirely on the LAN (relays disabled; sender discovery uses mDNS). Note this still requires moving the beam code between devices — handy when you can scan/share the code but want zero internet involvement.

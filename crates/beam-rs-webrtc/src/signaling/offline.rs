@@ -28,15 +28,10 @@
 //!
 //! - Exchange codes through a trusted, private channel (in-person, encrypted chat)
 //! - Avoid pasting codes into untrusted applications or services
-//! - For higher security with untrusted signaling, use the normal Nostr-based
-//!   mode which derives keys via SPAKE2 password-authenticated key exchange
 //!
-//! ## Why Not PAKE for Offline Mode?
-//!
-//! PAKE (Password-Authenticated Key Exchange) requires multiple round trips
-//! between parties to derive a shared secret. Offline mode uses single-direction
-//! copy/paste (offer → answer), which doesn't support the interactive protocol
-//! PAKE requires. The key must therefore be transmitted directly.
+//! The same trust assumption applies to the Nostr-based beam code, which also
+//! embeds the encryption key — the difference is only that signaling travels
+//! over relays instead of a manual copy/paste channel.
 
 use anyhow::{Context, Result};
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
@@ -170,7 +165,7 @@ pub fn display_offer_json(offer: &OfflineOffer) -> Result<()> {
 
     println!();
     println!("=== SENDER STEP 1: Ask the receiver to run ===");
-    println!("  beam-rs-webrtc receive-manual");
+    println!("  beam-rs-webrtc receive");
     println!();
     println!("=== SENDER STEP 2: Press Enter to show the offer code ===");
     std::io::stdout().flush()?;
@@ -418,16 +413,84 @@ fn validate_offer_ttl(offer: &OfflineOffer) -> Result<()> {
     Ok(())
 }
 
-/// Read and parse base64url-encoded offer from user input with CRC32 validation
-pub fn read_offer_json() -> Result<OfflineOffer> {
-    let json = decode_with_checksum(
-        "=== RECEIVER STEP 1: Paste sender's code (including BEGIN/END markers) ===",
-        OFFER_BEGIN_MARKER,
-        OFFER_END_MARKER,
-    )?;
+/// Decode a base64url payload with trailing CRC32 checksum into its inner JSON string.
+fn decode_checksum_payload(encoded: &str) -> Result<String> {
+    let decoded = URL_SAFE_NO_PAD
+        .decode(encoded)
+        .context("Invalid code format: not valid base64url")?;
+
+    // Need at least CRC32 (4 bytes) + minimal JSON
+    if decoded.len() < 4 + 2 {
+        anyhow::bail!(
+            "Code too short (got {} bytes, need at least 6)",
+            decoded.len()
+        );
+    }
+
+    let (json_bytes, checksum_bytes) = decoded.split_at(decoded.len() - 4);
+    let expected = u32::from_be_bytes(checksum_bytes.try_into().unwrap());
+    let actual = crc32fast::hash(json_bytes);
+    if expected != actual {
+        anyhow::bail!("Checksum mismatch - code may have been corrupted during copy/paste.");
+    }
+
+    String::from_utf8(json_bytes.to_vec()).context("Invalid UTF-8 in decoded data")
+}
+
+/// Receiver input, auto-detected from what the user provides.
+pub enum ReceiveInput {
+    /// An automatic beam code (single line, Nostr signaling).
+    Code(String),
+    /// A manual copy/paste offer (wrapped in BEGIN/END markers).
+    Manual(Box<OfflineOffer>),
+}
+
+/// Read receiver input from stdin and auto-detect the transfer mode.
+///
+/// A manual offer is recognized by its leading BEGIN marker; anything else is
+/// treated as an automatic beam code.
+pub fn read_code_or_offer() -> Result<ReceiveInput> {
+    println!("Enter the sender's beam code, or paste the manual offer code");
+    println!("(including the {OFFER_BEGIN_MARKER} / {OFFER_END_MARKER} markers):");
+    std::io::stdout().flush().context("Failed to flush stdout")?;
+
+    let stdin = std::io::stdin();
+    let mut lines = stdin.lock().lines();
+
+    // Skip leading blank lines to find the first meaningful line.
+    let first = loop {
+        match lines.next() {
+            Some(line) => {
+                let line = line.context("Failed to read line")?;
+                if !line.trim().is_empty() {
+                    break line;
+                }
+            }
+            None => anyhow::bail!("No input received"),
+        }
+    };
+
+    // Not a manual offer marker -> treat the line as a beam code.
+    if first.trim() != OFFER_BEGIN_MARKER {
+        return Ok(ReceiveInput::Code(first.trim().to_string()));
+    }
+
+    // Manual offer: collect remaining lines up to and including the END marker.
+    let mut collected = vec![first];
+    for line in lines {
+        let line = line.context("Failed to read line")?;
+        let is_end = line.trim() == OFFER_END_MARKER;
+        collected.push(line);
+        if is_end {
+            break;
+        }
+    }
+
+    let encoded = extract_marked_payload(collected, OFFER_BEGIN_MARKER, OFFER_END_MARKER)?;
+    let json = decode_checksum_payload(&encoded)?;
     let offer: OfflineOffer = serde_json::from_str(&json).context("Failed to parse offer")?;
     validate_offer_ttl(&offer)?;
-    Ok(offer)
+    Ok(ReceiveInput::Manual(Box::new(offer)))
 }
 
 /// Read and parse base64url-encoded answer from user input with CRC32 validation

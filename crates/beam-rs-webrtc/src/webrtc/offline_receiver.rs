@@ -13,7 +13,7 @@ use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 use beam_common::core::transfer::{format_bytes, run_receiver_transfer};
 
 use crate::signaling::offline::{
-    OfflineAnswer, display_answer_json, ice_candidates_to_payloads, read_offer_json,
+    OfflineAnswer, OfflineOffer, display_answer_json, ice_candidates_to_payloads,
 };
 use crate::webrtc::common::{DataChannelStream, WebRtcPeer};
 
@@ -23,13 +23,17 @@ const ICE_GATHERING_TIMEOUT: Duration = Duration::from_secs(10);
 /// Timeout for WebRTC connection (3 minutes to allow time for copy/paste signaling)
 const CONNECTION_TIMEOUT: Duration = Duration::from_secs(180);
 
-/// Receive a file via offline WebRTC (copy/paste JSON signaling)
-pub async fn receive_file_offline(output_dir: Option<PathBuf>, no_resume: bool) -> Result<()> {
+/// Receive a file via offline WebRTC (copy/paste JSON signaling).
+///
+/// The sender's `offer` has already been read and validated by the caller
+/// (see [`crate::signaling::offline::read_code_or_offer`]).
+pub async fn receive_file_offline(
+    offer: OfflineOffer,
+    output_dir: Option<PathBuf>,
+    no_resume: bool,
+) -> Result<()> {
     eprintln!("Offline WebRTC Receiver");
     eprintln!("=======================\n");
-
-    // Read offer from user
-    let offer = read_offer_json()?;
 
     let transfer_info = &offer.transfer_info;
     eprintln!(

@@ -21,9 +21,6 @@ nostr-sdk = { workspace = true, optional = true }
 
 # Cryptography
 aes-gcm = "0.10"
-argon2 = "0.5"
-sha2 = "0.10"
-spake2 = "0.4"
 
 # File handling
 tempfile = { workspace = true }
@@ -36,6 +33,6 @@ xxhash-rust = { version = "0.8", features = ["xxh64"] }
 # HTTP client for relay fetching
 reqwest = { version = "0.12", features = ["json", "multipart", "stream"] }
 
-# CLI (for PIN input)
+# CLI (interactive prompts)
 rustyline = "15"
 crc32fast = "1.4"

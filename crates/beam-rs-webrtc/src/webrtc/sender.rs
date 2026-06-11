@@ -6,13 +6,11 @@ use anyhow::{Context, Result};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::fs::File;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+use tokio::io::AsyncBufReadExt;
 use tokio::time::{Duration, timeout};
 use webrtc::ice_transport::ice_candidate::RTCIceCandidateInit;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 
-use beam_common::auth::PinInfo;
-use beam_common::auth::spake2::handshake_as_responder;
 use beam_common::core::crypto::generate_key;
 use beam_common::core::transfer::{
     FileHeader, TransferType, format_bytes, run_sender_transfer, send_file_with, send_folder_with,
@@ -25,9 +23,6 @@ use crate::webrtc::common::{DataChannelStream, WebRtcPeer};
 
 /// Connection timeout for WebRTC handshake
 const WEBRTC_CONNECTION_TIMEOUT: Duration = Duration::from_secs(30);
-
-/// Timeout for SPAKE2 handshake in PIN mode
-const SPAKE2_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Check if an error is a signaling-related error (vs file/transfer error).
 ///
@@ -105,32 +100,11 @@ where
     }
 }
 
-/// Display transfer code or PIN to the user with instructions.
-/// Returns the PIN when in PIN mode, for use in SPAKE2 handshake.
-async fn display_transfer_code(
-    use_pin: bool,
-    signaling_keys: &nostr_sdk::Keys,
-    code_str: &str,
-    transfer_id: &str,
-) -> Result<Option<String>> {
-    if use_pin {
-        let pin = beam_common::auth::nostr_pin::publish_beam_code_via_pin(
-            signaling_keys,
-            code_str,
-            transfer_id,
-        )
-        .await?;
-
-        eprintln!("\n--- Receiver Instructions ---");
-        eprintln!("Run: beam-rs-webrtc receive --pin");
-        eprintln!("PIN: {}\n", pin);
-        Ok(Some(pin))
-    } else {
-        eprintln!("\n--- Receiver Instructions ---");
-        eprintln!("Run: beam-rs-webrtc receive");
-        eprintln!("Beam code:\n{}\n", code_str);
-        Ok(None)
-    }
+/// Display the transfer code to the user with instructions.
+fn display_transfer_code(code_str: &str) {
+    eprintln!("\n--- Receiver Instructions ---");
+    eprintln!("Run: beam-rs-webrtc receive");
+    eprintln!("Beam code:\n{}\n", code_str);
 }
 
 /// Result of WebRTC connection attempt
@@ -145,7 +119,6 @@ async fn try_webrtc_transfer(
     header: &FileHeader,
     key: &[u8; 32],
     signaling: &NostrSignaling,
-    pin_info: Option<PinInfo>,
 ) -> Result<WebRtcResult> {
     eprintln!("Attempting WebRTC connection...");
 
@@ -266,30 +239,13 @@ async fn try_webrtc_transfer(
     // Small delay to ensure connection is stable
     tokio::time::sleep(Duration::from_millis(100)).await;
 
-    // Perform SPAKE2 handshake if PIN mode is active (sender = responder)
     let mut stream = stream;
-    let key = if let Some(ref pin_info) = pin_info {
-        let (pin, transfer_id) = (&pin_info.pin, &pin_info.transfer_id);
-        eprintln!("Performing SPAKE2 authentication...");
-        // Send a "ready" byte for protocol consistency with iroh transport
-        stream.write_all(&[0x01]).await.context("Failed to send ready byte")?;
-        let derived_key = timeout(
-            SPAKE2_HANDSHAKE_TIMEOUT,
-            handshake_as_responder(&mut stream, pin, transfer_id),
-        )
-        .await
-        .map_err(|_| anyhow::anyhow!("SPAKE2 handshake timed out"))??;
-        eprintln!("SPAKE2 authentication successful!");
-        derived_key
-    } else {
-        *key
-    };
 
     // Wrap peer in Arc for cleanup
     let rtc_peer = Arc::new(rtc_peer);
 
     // Use common transfer protocol
-    let result = run_sender_transfer(file, &mut stream, &key, header).await;
+    let result = run_sender_transfer(file, &mut stream, key, header).await;
 
     // Cleanup
     let _ = rtc_peer.close().await;
@@ -302,7 +258,6 @@ async fn try_webrtc_transfer(
 }
 
 /// Internal helper for webrtc transfer logic.
-#[allow(clippy::too_many_arguments)]
 async fn transfer_data_webrtc_internal(
     mut file: File,
     filename: String,
@@ -311,7 +266,6 @@ async fn transfer_data_webrtc_internal(
     transfer_type: TransferType,
     custom_relays: Option<Vec<String>>,
     use_default_relays: bool,
-    use_pin: bool,
 ) -> Result<()> {
     // Generate encryption key (always required)
     let key = generate_key();
@@ -337,15 +291,7 @@ async fn transfer_data_webrtc_internal(
         },
     )?;
 
-    let pin = display_transfer_code(
-        use_pin,
-        signaling.signing_keys(),
-        &code,
-        signaling.transfer_id(),
-    )
-    .await?;
-
-    let pin_info = pin.map(|p| PinInfo { pin: p, transfer_id: signaling.transfer_id().to_string() });
+    display_transfer_code(&code);
 
     eprintln!("Filename: {}", filename);
     eprintln!("Size: {}", format_bytes(file_size));
@@ -355,7 +301,7 @@ async fn transfer_data_webrtc_internal(
     let header = FileHeader::new(transfer_type, filename.clone(), file_size, checksum);
 
     // Try WebRTC transfer
-    match try_webrtc_transfer(&mut file, &header, &key, &signaling, pin_info).await? {
+    match try_webrtc_transfer(&mut file, &header, &key, &signaling).await? {
         WebRtcResult::Success => {
             signaling.disconnect().await;
             eprintln!("Connection closed.");
@@ -366,7 +312,7 @@ async fn transfer_data_webrtc_internal(
             anyhow::bail!(
                 "WebRTC connection failed: {}\n\n\
                  If direct P2P connection is not possible, try:\n  \
-                 - Use manual mode: beam-rs-webrtc send-manual <file>",
+                 - Use manual mode: beam-rs-webrtc send --manual <file>",
                 reason
             );
         }
@@ -378,10 +324,9 @@ pub async fn send_file_webrtc(
     file_path: &Path,
     custom_relays: Option<Vec<String>>,
     use_default_relays: bool,
-    use_pin: bool,
 ) -> Result<()> {
     // Try normal Nostr signaling path
-    match send_file_webrtc_internal(file_path, custom_relays, use_default_relays, use_pin).await {
+    match send_file_webrtc_internal(file_path, custom_relays, use_default_relays).await {
         Ok(()) => Ok(()),
         Err(e) => {
             let path = file_path.to_path_buf();
@@ -398,7 +343,6 @@ async fn send_file_webrtc_internal(
     file_path: &Path,
     custom_relays: Option<Vec<String>>,
     use_default_relays: bool,
-    use_pin: bool,
 ) -> Result<()> {
     send_file_with(
         file_path,
@@ -411,7 +355,6 @@ async fn send_file_webrtc_internal(
                 transfer_type,
                 custom_relays,
                 use_default_relays,
-                use_pin,
             )
         },
     )
@@ -423,11 +366,9 @@ pub async fn send_folder_webrtc(
     folder_path: &Path,
     custom_relays: Option<Vec<String>>,
     use_default_relays: bool,
-    use_pin: bool,
 ) -> Result<()> {
     // Try normal Nostr signaling path
-    match send_folder_webrtc_internal(folder_path, custom_relays, use_default_relays, use_pin).await
-    {
+    match send_folder_webrtc_internal(folder_path, custom_relays, use_default_relays).await {
         Ok(()) => Ok(()),
         Err(e) => {
             let path = folder_path.to_path_buf();
@@ -444,7 +385,6 @@ async fn send_folder_webrtc_internal(
     folder_path: &Path,
     custom_relays: Option<Vec<String>>,
     use_default_relays: bool,
-    use_pin: bool,
 ) -> Result<()> {
     send_folder_with(
         folder_path,
@@ -457,7 +397,6 @@ async fn send_folder_webrtc_internal(
                 transfer_type,
                 custom_relays,
                 use_default_relays,
-                use_pin,
             )
         },
     )

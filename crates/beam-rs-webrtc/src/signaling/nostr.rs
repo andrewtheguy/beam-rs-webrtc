@@ -195,15 +195,6 @@ impl NostrSignaling {
         &self.relay_urls
     }
 
-    /// Get a reference to the signing keys
-    ///
-    /// This is needed for operations that require signing events
-    /// (e.g., PIN-based code publishing). The keys should not be
-    /// exposed or stored elsewhere.
-    pub fn signing_keys(&self) -> &Keys {
-        &self.keys
-    }
-
     /// Create a signaling event with common tags
     fn create_signaling_event(
         &self,

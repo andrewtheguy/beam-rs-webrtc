@@ -4,13 +4,10 @@
 
 use anyhow::{Context, Result};
 use std::path::PathBuf;
-use tokio::io::AsyncReadExt;
 use tokio::time::{Duration, timeout};
 use webrtc::ice_transport::ice_candidate::RTCIceCandidateInit;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 
-use beam_common::auth::PinInfo;
-use beam_common::auth::spake2::handshake_as_initiator;
 use beam_common::core::transfer::run_receiver_transfer;
 use beam_common::core::beam::{PROTOCOL_WEBRTC, decode_key, parse_code};
 
@@ -30,9 +27,6 @@ const DATA_CHANNEL_OPEN_TIMEOUT: Duration = Duration::from_secs(10);
 /// Timeout for waiting for the sender to close the connection after transfer
 const CLOSE_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// Timeout for SPAKE2 handshake in PIN mode
-const SPAKE2_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(30);
-
 /// Result of WebRTC connection attempt
 enum WebRtcResult {
     Success,
@@ -46,7 +40,6 @@ async fn try_webrtc_receive(
     key: &[u8; 32],
     output_dir: Option<PathBuf>,
     no_resume: bool,
-    pin_info: Option<PinInfo>,
 ) -> Result<WebRtcResult> {
     eprintln!("Attempting WebRTC connection...");
 
@@ -172,31 +165,8 @@ async fn try_webrtc_receive(
         eprintln!("   Local: {} -> Remote: {}", local, remote);
     }
 
-    // Perform SPAKE2 handshake if PIN mode is active (receiver = initiator)
-    let mut stream = stream;
-    let key = if let Some(ref pin_info) = pin_info {
-        let (pin, transfer_id) = (&pin_info.pin, &pin_info.transfer_id);
-        // Read the "ready" byte for protocol consistency with iroh transport
-        let mut ready = [0u8; 1];
-        stream.read_exact(&mut ready).await.context("Failed to read ready byte")?;
-        if ready[0] != 0x01 {
-            anyhow::bail!("Invalid ready byte: expected 0x01, got 0x{:02x}", ready[0]);
-        }
-        eprintln!("Performing SPAKE2 authentication...");
-        let derived_key = timeout(
-            SPAKE2_HANDSHAKE_TIMEOUT,
-            handshake_as_initiator(&mut stream, pin, transfer_id),
-        )
-        .await
-        .map_err(|_| anyhow::anyhow!("SPAKE2 handshake timed out"))??;
-        eprintln!("SPAKE2 authentication successful!");
-        derived_key
-    } else {
-        *key
-    };
-
     // Use common transfer protocol
-    let (_, stream) = run_receiver_transfer(stream, key, output_dir, no_resume).await?;
+    let (_, stream) = run_receiver_transfer(stream, *key, output_dir, no_resume).await?;
 
     // Wait for sender to close the connection (confirms ACK was received)
     // This ensures the ACK is delivered before we close our side
@@ -214,7 +184,6 @@ pub async fn receive_webrtc(
     code: &str,
     output_dir: Option<PathBuf>,
     no_resume: bool,
-    pin_info: Option<PinInfo>,
 ) -> Result<()> {
     eprintln!("Parsing beam code...");
 
@@ -258,16 +227,7 @@ pub async fn receive_webrtc(
     eprintln!("Receiver pubkey: {}", signaling.public_key().to_hex());
 
     // Try WebRTC transfer
-    match try_webrtc_receive(
-        &signaling,
-        &sender_pubkey,
-        &key,
-        output_dir.clone(),
-        no_resume,
-        pin_info,
-    )
-    .await?
-    {
+    match try_webrtc_receive(&signaling, &sender_pubkey, &key, output_dir.clone(), no_resume).await? {
         WebRtcResult::Success => {
             signaling.disconnect().await;
             eprintln!("Connection closed.");
@@ -278,7 +238,7 @@ pub async fn receive_webrtc(
             anyhow::bail!(
                 "WebRTC connection failed: {}\n\n\
                  If direct P2P connection is not possible, ask the sender to try:\n  \
-                 - Manual mode: beam-rs-webrtc send-manual <file>",
+                 - Manual mode: beam-rs-webrtc send --manual <file>",
                 reason
             );
         }

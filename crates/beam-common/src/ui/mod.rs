@@ -36,7 +36,7 @@ pub enum Phase {
     Waiting,
     /// Establishing the peer connection.
     Connecting,
-    /// Performing the optional SPAKE2/PIN handshake.
+    /// Performing an optional authentication handshake.
     Authenticating,
     /// Bytes are flowing.
     Transferring,
@@ -81,9 +81,6 @@ pub trait UiSink: Send + Sync {
 
     /// Display the sender's beam code.
     fn show_code(&self, code: &str);
-
-    /// Display the sender's PIN.
-    fn show_pin(&self, pin: &str);
 
     /// Hint the current transfer [`Phase`]. Default: ignore.
     fn set_phase(&self, _phase: Phase) {}
@@ -144,10 +141,6 @@ impl UiSink for PlainSink {
 
     fn show_code(&self, code: &str) {
         println!("\n🔮 Beam code:\n{}\n", code);
-    }
-
-    fn show_pin(&self, pin: &str) {
-        println!("🔢 PIN: {}\n", pin);
     }
 
     fn prompt_file_exists(&self, path: &Path) -> Result<FileExistsChoice> {

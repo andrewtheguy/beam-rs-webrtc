@@ -5,8 +5,16 @@ use rand::Rng;
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
-// Re-export from auth::nostr_pin for backward compatibility
-pub use crate::auth::nostr_pin::DEFAULT_NOSTR_RELAYS;
+/// Default public Nostr relays used for signaling and relay discovery.
+/// These should match the relays used across signaling for consistency.
+pub const DEFAULT_NOSTR_RELAYS: &[&str] = &[
+    "wss://nos.lol",
+    //"wss://relay.damus.io", // acceptable for index queries; not recommended for high-volume operations due to rate limiting
+    //"wss://relay.nostr.band",
+    "wss://relay.nostr.net",
+    "wss://relay.primal.net",
+    "wss://relay.snort.social",
+];
 
 /// Nostr event kind for file transfer signaling (ephemeral range 20000-29999)
 /// Ephemeral events are not stored permanently by relays

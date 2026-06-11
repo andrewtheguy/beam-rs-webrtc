@@ -11,7 +11,8 @@ signaling methods for establishing that channel:
 1. **Online (Nostr signaling)** — SDP offers/answers and ICE candidates are
    exchanged through Nostr relays via `beam-rs-webrtc send` / `receive`.
 2. **Manual (offline signaling)** — the offer and answer payloads are exchanged
-   by copy-paste via `beam-rs-webrtc send-manual` / `receive-manual`.
+   by copy-paste via `beam-rs-webrtc send --manual`; the receiver uses the same
+   `beam-rs-webrtc receive`, which auto-detects a pasted manual offer.
 
 In both cases the file bytes flow directly peer-to-peer; the signaling method
 only affects how the two peers find each other and negotiate the connection.
@@ -88,7 +89,7 @@ sequenceDiagram
     Note over Sender: Offer = SDP offer + ICE candidates + transfer info + created_at + AES key
 
     Sender->>User: 5. Display offer code
-    User->>Receiver: 6. Paste offer code into receive-manual
+    User->>Receiver: 6. Paste offer code into receive (auto-detected)
 
     Receiver->>Receiver: 7. Validate offer TTL and checksum
     Receiver->>Receiver: 8. Create RTCPeerConnection
@@ -96,7 +97,7 @@ sequenceDiagram
     Receiver->>Receiver: 10. Create SDP answer and gather receiver ICE candidates
 
     Receiver->>User: 11. Display answer code
-    User->>Sender: 12. Paste answer code into send-manual
+    User->>Sender: 12. Paste answer code into send --manual
 
     Sender->>Sender: 13. Set remote answer and add receiver ICE candidates
 
@@ -125,15 +126,13 @@ sequenceDiagram
 - **Discovery**: Nostr relays for SDP/ICE signaling (relays auto-discovered, or set with `--relay` / `--default-relays`)
 - **NAT Traversal**: ICE with multiple public STUN servers (Google + Cloudflare)
 - **Key Exchange**: Beam code (carries the AES key)
-- **PIN Support**: Yes (`beam-rs-webrtc send --pin` / `beam-rs-webrtc receive --pin`)
 - **Encryption**: DTLS (WebRTC built-in) + AES-256-GCM at application layer
 
-### Manual WebRTC Mode (`beam-rs-webrtc send-manual`)
+### Manual WebRTC Mode (`beam-rs-webrtc send --manual`)
 - **Transport**: WebRTC DataChannel over DTLS
 - **Discovery**: Manual copy/paste offer and answer payloads containing SDP and ICE candidates
 - **NAT Traversal**: ICE with multiple public STUN servers (Google + Cloudflare)
 - **Key Exchange**: Manual offer payload (carries the AES key and must be shared over a trusted channel)
-- **PIN Support**: No; manual mode is a two-payload offer/answer exchange and does not use Nostr PIN lookup
 - **Encryption**: DTLS (WebRTC built-in) + AES-256-GCM at application layer
 
 ## Security Model
@@ -149,19 +148,6 @@ WebRTC mode uses two encryption layers for defense in depth:
 - AES-256-GCM encryption for all data: headers, chunks, and control signals
 - Per-transfer random key embedded in the beam code (or the manual offer payload)
 
-### PIN-based Key Exchange (PIN Mode)
-PIN mode is available for online WebRTC mode (`beam-rs-webrtc send --pin`). It is
-not available for manual mode.
-
-PIN mode exchanges the beam code through Nostr keyed by a short PIN, then runs a
-SPAKE2 handshake over the established DataChannel to derive the session key. PIN
-mode requires internet access for the Nostr lookup.
-
-- **Format**: 12 characters (11 random + 1 checksum) from an unambiguous charset; the checksum catches typos before attempting a connection.
-- **Key Derivation**: The PIN is fed into SPAKE2 (with transfer_id as context) to derive the session key.
-- **Security**: SPAKE2 prevents offline dictionary attacks and rejects wrong transfer_id.
-- **Confidentiality**: All data (headers, chunks, and control signals) is AES-256-GCM encrypted with the SPAKE2-derived key, on top of the DTLS transport encryption.
-
 ### TTL (Time-To-Live) Validation
 
 All beam codes and manual signaling offers include a creation timestamp and are
@@ -175,7 +161,7 @@ establishment.
 
 **Validation Points:**
 1. **Beam Codes** (online WebRTC via Nostr): Validated in `parse_code()` before connection.
-2. **Manual Signaling Offers** (`send-manual`/`receive-manual`): Validated in `read_offer_json()` before the WebRTC handshake.
+2. **Manual Signaling Offers** (`send --manual` / `receive`): Validated in `read_code_or_offer()` before the WebRTC handshake.
 
 **Error Messages:**
 - Expired codes: "Token expired: code is X minutes old (max 60 minutes). Please request a new code from the sender."

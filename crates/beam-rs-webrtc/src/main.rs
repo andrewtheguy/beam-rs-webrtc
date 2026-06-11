@@ -8,10 +8,10 @@
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use std::io::{self, Write};
 use std::path::PathBuf;
-use beam_common::auth::PinInfo;
 use beam_common::core::transfer::is_interrupted;
+
+use crate::signaling::offline::ReceiveInput;
 
 mod signaling;
 mod webrtc;
@@ -31,10 +31,14 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Send a file using WebRTC transport with Nostr signaling
+    /// Send a file using WebRTC transport
     Send {
         /// Path to file or folder to send
         path: PathBuf,
+
+        /// Use manual signaling (copy/paste SDP offers) instead of Nostr
+        #[arg(long)]
+        manual: bool,
 
         /// Use default Nostr relays instead of auto-discovery
         #[arg(long)]
@@ -43,38 +47,16 @@ enum Commands {
         /// Custom Nostr relay URLs (can be specified multiple times)
         #[arg(long, value_name = "URL")]
         relay: Vec<String>,
-
-        /// Use PIN-based code exchange (easier to share verbally)
-        #[arg(long)]
-        pin: bool,
     },
 
-    /// Receive a file using WebRTC transport with Nostr signaling
+    /// Receive a file using WebRTC transport
+    ///
+    /// Automatically detects whether the input is a Nostr beam code or a
+    /// manual copy/paste offer.
     Receive {
         /// Beam code from sender (will prompt if not provided)
         code: Option<String>,
 
-        /// Output directory (defaults to current directory)
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-
-        /// Disable resumable transfers (don't save partial downloads)
-        #[arg(long)]
-        no_resume: bool,
-
-        /// Use PIN-based code exchange (prompts for PIN input)
-        #[arg(long)]
-        pin: bool,
-    },
-
-    /// Send a file using manual signaling (copy/paste SDP offers)
-    SendManual {
-        /// Path to file or folder to send
-        path: PathBuf,
-    },
-
-    /// Receive a file using manual signaling (copy/paste SDP offers)
-    ReceiveManual {
         /// Output directory (defaults to current directory)
         #[arg(short, long)]
         output: Option<PathBuf>,
@@ -116,16 +98,24 @@ async fn async_main() -> Result<()> {
     match cli.command {
         Commands::Send {
             path,
+            manual,
             default_relays,
             relay,
-            pin,
         } => {
-            let custom_relays = if relay.is_empty() { None } else { Some(relay) };
-
-            if path.is_dir() {
-                webrtc::send_folder_webrtc(&path, custom_relays, default_relays, pin).await?;
+            if manual {
+                if path.is_dir() {
+                    webrtc::offline_sender::send_folder_offline(&path).await?;
+                } else {
+                    webrtc::offline_sender::send_file_offline(&path).await?;
+                }
             } else {
-                webrtc::send_file_webrtc(&path, custom_relays, default_relays, pin).await?;
+                let custom_relays = if relay.is_empty() { None } else { Some(relay) };
+
+                if path.is_dir() {
+                    webrtc::send_folder_webrtc(&path, custom_relays, default_relays).await?;
+                } else {
+                    webrtc::send_file_webrtc(&path, custom_relays, default_relays).await?;
+                }
             }
         }
 
@@ -133,45 +123,25 @@ async fn async_main() -> Result<()> {
             code,
             output,
             no_resume,
-            pin,
         } => {
-            // Get beam code from PIN, argument, or prompt
-            let (code, pin_info) = if pin {
-                // Use PIN-based code lookup
-                let pin_str = beam_common::auth::pin::prompt_pin()?;
-                eprintln!("Looking up beam code via PIN...");
-                let result =
-                    beam_common::auth::nostr_pin::fetch_beam_code_via_pin(&pin_str)
-                        .await?;
-                (result.code, Some(PinInfo { pin: pin_str, transfer_id: result.transfer_id }))
-            } else if let Some(c) = code {
-                (c.trim().to_string(), None)
-            } else {
-                // Prompt for beam code
-                print!("Enter beam code: ");
-                io::stdout().flush()?;
-                let mut input = String::new();
-                io::stdin().read_line(&mut input)?;
-                (input.trim().to_string(), None)
+            // A beam code given on the command line is always an automatic
+            // transfer; otherwise read from stdin and auto-detect the mode.
+            let input = match code {
+                Some(c) => ReceiveInput::Code(c.trim().to_string()),
+                None => crate::signaling::offline::read_code_or_offer()?,
             };
 
-            if code.is_empty() {
-                anyhow::bail!("Beam code is required");
+            match input {
+                ReceiveInput::Code(code) => {
+                    if code.is_empty() {
+                        anyhow::bail!("Beam code is required");
+                    }
+                    webrtc::receive_webrtc(&code, output, no_resume).await?;
+                }
+                ReceiveInput::Manual(offer) => {
+                    webrtc::receive_file_offline(*offer, output, no_resume).await?;
+                }
             }
-
-            webrtc::receive_webrtc(&code, output, no_resume, pin_info).await?;
-        }
-
-        Commands::SendManual { path } => {
-            if path.is_dir() {
-                webrtc::offline_sender::send_folder_offline(&path).await?;
-            } else {
-                webrtc::offline_sender::send_file_offline(&path).await?;
-            }
-        }
-
-        Commands::ReceiveManual { output, no_resume } => {
-            webrtc::receive_file_offline(output, no_resume).await?;
         }
     }
 

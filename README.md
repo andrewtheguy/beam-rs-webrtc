@@ -13,7 +13,6 @@ A secure, cross-platform, single-binary peer-to-peer file transfer tool built on
 - **Manual signaling** - Offline copy/paste offer/answer exchange when relays are unavailable
 - **Resumable file transfers** - Interrupted file downloads can resume from where they left off
 - **File and folder transfers** - Send individual files or entire directories (automatically archived)
-- **PIN-based codes** - Optional short PIN exchange (via Nostr) for sharing a transfer verbally
 - **Cross-platform** - Standalone binary for macOS, Linux, and Windows
 
 ## Installation
@@ -98,19 +97,6 @@ beam-rs-webrtc receive <BEAM_CODE> --output /path/to/dir
 beam-rs-webrtc receive <BEAM_CODE> --no-resume
 ```
 
-### PIN Mode
-
-PIN mode exchanges a short, verbally-shareable code via Nostr instead of the
-full beam code.
-
-```bash
-# Sender
-beam-rs-webrtc send --pin /path/to/file
-
-# Receiver (prompts for the PIN)
-beam-rs-webrtc receive --pin
-```
-
 ### Manual Mode (offline signaling)
 
 Use manual mode when Nostr relays are unavailable and both peers still have
@@ -119,11 +105,15 @@ path). Offer/answer codes are exchanged by copy-paste.
 
 ```bash
 # Sender
-beam-rs-webrtc send-manual /path/to/file
+beam-rs-webrtc send --manual /path/to/file
 
-# Receiver
-beam-rs-webrtc receive-manual
+# Receiver (auto-detects the manual offer when you paste it)
+beam-rs-webrtc receive
 ```
+
+The receiver uses the same `receive` command for both modes: paste a beam code
+for a normal Nostr transfer, or paste a manual offer code and it is detected
+automatically.
 
 The manual offer/answer codes contain the encryption key, so only share them
 through a secure channel (SSH, remote desktop, encrypted chat).

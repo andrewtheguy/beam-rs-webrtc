@@ -28,7 +28,10 @@ use std::time::Duration;
 
 use anyhow::{Result, anyhow};
 use crossterm::cursor::{MoveTo, Show};
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::event::{
+    self, DisableBracketedPaste, EnableBracketedPaste, Event, KeyCode, KeyEvent, KeyEventKind,
+    KeyModifiers,
+};
 use crossterm::{execute, queue};
 use crossterm::style::{Attribute, Print, SetAttribute};
 use crossterm::terminal::{Clear, ClearType, disable_raw_mode};
@@ -585,37 +588,142 @@ fn run_prompt(terminal: &mut DefaultTerminal, kind: PromptKind) -> io::Result<Pr
                 }
             }
         }
-        PromptKind::Line { prompt, initial } => {
-            let mut buffer = initial;
-            loop {
-                let body = vec![
-                    Line::from(Span::styled(prompt.clone(), Style::new().bold())),
-                    Line::from(vec![
-                        Span::raw("> "),
-                        Span::raw(buffer.clone()),
-                        Span::styled("▏", Style::new().cyan()),
-                    ]),
-                    Line::from(""),
-                    Line::from(Span::styled(
-                        "Enter to confirm · Esc to cancel",
-                        Style::new().dim(),
-                    )),
-                ];
-                draw_modal(terminal, &body)?;
-                let k = next_key_event()?;
+        PromptKind::Line { prompt, initial } => run_line_prompt(terminal, &prompt, initial),
+    }
+}
+
+/// Run an editable, readline-style single-line prompt.
+///
+/// Mirrors the non-TUI (rustyline) input: the cursor can move through the text
+/// (←/→, Home/End, Ctrl-A/E) and edits happen at the cursor (insert, Backspace,
+/// Delete, Ctrl-U/K/W), so a pasted beam code can be corrected mid-string.
+/// Bracketed paste is enabled so a paste arrives as one chunk instead of a
+/// flood of key events.
+fn run_line_prompt(
+    terminal: &mut DefaultTerminal,
+    prompt: &str,
+    initial: String,
+) -> io::Result<PromptReply> {
+    let _ = execute!(io::stdout(), EnableBracketedPaste);
+    let result = line_editor(terminal, prompt, initial);
+    let _ = execute!(io::stdout(), DisableBracketedPaste);
+    result
+}
+
+fn line_editor(
+    terminal: &mut DefaultTerminal,
+    prompt: &str,
+    initial: String,
+) -> io::Result<PromptReply> {
+    let mut chars: Vec<char> = initial.chars().collect();
+    let mut cursor = chars.len();
+
+    loop {
+        draw_line_modal(terminal, prompt, &chars, cursor)?;
+
+        match next_input_event()? {
+            Event::Paste(s) => {
+                for c in s.chars().filter(|c| !c.is_control()) {
+                    chars.insert(cursor, c);
+                    cursor += 1;
+                }
+            }
+            Event::Key(k) => {
+                let ctrl = k.modifiers.contains(KeyModifiers::CONTROL);
                 match k.code {
-                    KeyCode::Enter => return Ok(PromptReply::Line(Ok(buffer))),
+                    KeyCode::Enter => {
+                        return Ok(PromptReply::Line(Ok(chars.into_iter().collect())));
+                    }
                     KeyCode::Esc => return Ok(PromptReply::Line(Err("cancelled".into()))),
-                    KeyCode::Char('c') if k.modifiers.contains(KeyModifiers::CONTROL) => {
+                    KeyCode::Char('c') if ctrl => {
                         return Ok(PromptReply::Line(Err("Interrupted".into())));
                     }
-                    KeyCode::Char(c) => buffer.push(c),
-                    KeyCode::Backspace => {
-                        buffer.pop();
+                    // Cursor movement.
+                    KeyCode::Left => cursor = cursor.saturating_sub(1),
+                    KeyCode::Right if cursor < chars.len() => cursor += 1,
+                    KeyCode::Home => cursor = 0,
+                    KeyCode::End => cursor = chars.len(),
+                    KeyCode::Char('a') if ctrl => cursor = 0,
+                    KeyCode::Char('e') if ctrl => cursor = chars.len(),
+                    // Editing.
+                    KeyCode::Char('u') if ctrl => {
+                        chars.drain(..cursor);
+                        cursor = 0;
+                    }
+                    KeyCode::Char('k') if ctrl => chars.truncate(cursor),
+                    KeyCode::Char('w') if ctrl => {
+                        let start = prev_word_boundary(&chars, cursor);
+                        chars.drain(start..cursor);
+                        cursor = start;
+                    }
+                    KeyCode::Backspace if cursor > 0 => {
+                        cursor -= 1;
+                        chars.remove(cursor);
+                    }
+                    KeyCode::Delete if cursor < chars.len() => {
+                        chars.remove(cursor);
+                    }
+                    // Plain text entry (ignore control-modified chars).
+                    KeyCode::Char(c) if !ctrl => {
+                        chars.insert(cursor, c);
+                        cursor += 1;
                     }
                     _ => {}
                 }
             }
+            _ => {}
+        }
+    }
+}
+
+/// Index of the start of the word before `cursor` (for Ctrl-W).
+fn prev_word_boundary(chars: &[char], cursor: usize) -> usize {
+    let mut i = cursor;
+    while i > 0 && chars[i - 1].is_whitespace() {
+        i -= 1;
+    }
+    while i > 0 && !chars[i - 1].is_whitespace() {
+        i -= 1;
+    }
+    i
+}
+
+/// Draw the line-prompt modal with a block cursor at `cursor`.
+fn draw_line_modal(
+    terminal: &mut DefaultTerminal,
+    prompt: &str,
+    chars: &[char],
+    cursor: usize,
+) -> io::Result<()> {
+    let left: String = chars[..cursor].iter().collect();
+    let mut input = vec![Span::raw("> "), Span::raw(left)];
+    if cursor < chars.len() {
+        // Block cursor over the character it sits on.
+        input.push(Span::styled(chars[cursor].to_string(), Style::new().reversed()));
+        input.push(Span::raw(chars[cursor + 1..].iter().collect::<String>()));
+    } else {
+        input.push(Span::styled(" ", Style::new().reversed()));
+    }
+
+    let body = vec![
+        Line::from(Span::styled(prompt.to_string(), Style::new().bold())),
+        Line::from(input),
+        Line::from(""),
+        Line::from(Span::styled(
+            "←/→ move · Enter confirm · Esc cancel",
+            Style::new().dim(),
+        )),
+    ];
+    draw_modal(terminal, &body)
+}
+
+/// Block until the next key press or paste (ignoring releases/other events).
+fn next_input_event() -> io::Result<Event> {
+    loop {
+        match event::read()? {
+            ev @ Event::Key(k) if k.kind == KeyEventKind::Press => return Ok(ev),
+            ev @ Event::Paste(_) => return Ok(ev),
+            _ => {}
         }
     }
 }

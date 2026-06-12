@@ -20,7 +20,7 @@ $REPO_NAME = "xfer"
 # Allow passing flags when the script is piped into Invoke-Expression (iex) where
 # normal PowerShell parameter binding is unavailable. Users can set
 # $env:XFER_INSTALL_ARGS to a PowerShell-style argument string, e.g.:
-#   $env:XFER_INSTALL_ARGS='-PreRelease'; irm https://andrewtheguy.github.io/xfer/install.ps1 | iex
+#   $env:XFER_INSTALL_ARGS='-PreRelease'; irm https://andrewtheguy.github.io/xfer-webrtc/install.ps1 | iex
 # This keeps the single-line install experience while still supporting flags.
 
 # Function to print colored messages
@@ -431,7 +431,7 @@ Examples:
     .\install.ps1 -DownloadOnly 20251210172710 # Download specific release
     .\install.ps1 -Admin                       # Allow admin installation (not recommended)
     `$env:RELEASE_TAG='latest'; .\install.ps1  # Use environment variable
-    `$env:XFER_INSTALL_ARGS='-PreRelease'; irm https://andrewtheguy.github.io/xfer/install.ps1 | iex
+    `$env:XFER_INSTALL_ARGS='-PreRelease'; irm https://andrewtheguy.github.io/xfer-webrtc/install.ps1 | iex
 
 Supported platforms: Windows (amd64)
 

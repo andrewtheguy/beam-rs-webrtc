@@ -24,33 +24,33 @@ The release installers fetch a native, standalone executable. You only need the 
 ### Quick Install (Linux & macOS)
 
 ```bash
-curl -sSL https://andrewtheguy.github.io/xfer/install.sh | bash
+curl -sSL https://andrewtheguy.github.io/xfer-webrtc/install.sh | bash
 ```
 
 By default the installer pulls the latest **stable** release. Use `--prerelease` for the newest prerelease, or pass an explicit tag to pin to a specific build. Examples:
 
 ```bash
 # Latest prerelease
-curl -sSL https://andrewtheguy.github.io/xfer/install.sh | bash -s -- --prerelease
+curl -sSL https://andrewtheguy.github.io/xfer-webrtc/install.sh | bash -s -- --prerelease
 
 # Pin to a specific tag
-curl -sSL https://andrewtheguy.github.io/xfer/install.sh | bash -s 20251210172710
+curl -sSL https://andrewtheguy.github.io/xfer-webrtc/install.sh | bash -s 20251210172710
 ```
 
 ### Quick Install (Windows)
 
 ```powershell
-irm https://andrewtheguy.github.io/xfer/install.ps1 | iex
+irm https://andrewtheguy.github.io/xfer-webrtc/install.ps1 | iex
 ```
 
 By default the PowerShell installer pulls the latest **stable** release. Use `-PreRelease` for the newest prerelease, or pass an explicit tag to pin to a specific build. Examples (args-only parser):
 
 ```powershell
 # Latest prerelease
-$env:XFER_INSTALL_ARGS='-PreRelease'; irm https://andrewtheguy.github.io/xfer/install.ps1 | iex
+$env:XFER_INSTALL_ARGS='-PreRelease'; irm https://andrewtheguy.github.io/xfer-webrtc/install.ps1 | iex
 
 # Pin to a specific tag
-$env:XFER_INSTALL_ARGS='20251210172710'; irm https://andrewtheguy.github.io/xfer/install.ps1 | iex
+$env:XFER_INSTALL_ARGS='20251210172710'; irm https://andrewtheguy.github.io/xfer-webrtc/install.ps1 | iex
 ```
 
 ### From Source

@@ -1,6 +1,6 @@
 [package]
 name = "beam-rs-webrtc"
-version = "0.0.3"
+version = "0.0.4"
 edition = "2024"
 publish = false
 
@@ -24,9 +24,6 @@ hex = "0.4"
 rand = "0.8"
 futures = "0.3"
 log = "0.4"
-
-# Cryptography
-aes-gcm = "0.10"
 
 # File handling
 tempfile = "3"

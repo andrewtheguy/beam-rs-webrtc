@@ -42,7 +42,7 @@ enum Commands {
         #[arg(long)]
         default_relays: bool,
 
-        /// Custom Nostr relay URLs (can be specified multiple times)
+        /// Custom Nostr relay URLs (repeatable)
         #[arg(long, value_name = "URL")]
         relay: Vec<String>,
     },

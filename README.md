@@ -1,4 +1,4 @@
-# beam-rs-webrtc
+# xfer-webrtc
 
 > [!NOTE]
 > This project is still work in progress (0.0.x). No backward compatibility is guaranteed between versions.
@@ -22,33 +22,33 @@ The release installers fetch a native, standalone executable. You only need the 
 ### Quick Install (Linux & macOS)
 
 ```bash
-curl -sSL https://andrewtheguy.github.io/beam-rs/install.sh | bash
+curl -sSL https://andrewtheguy.github.io/xfer/install.sh | bash
 ```
 
 By default the installer pulls the latest **stable** release. Use `--prerelease` for the newest prerelease, or pass an explicit tag to pin to a specific build. Examples:
 
 ```bash
 # Latest prerelease
-curl -sSL https://andrewtheguy.github.io/beam-rs/install.sh | bash -s -- --prerelease
+curl -sSL https://andrewtheguy.github.io/xfer/install.sh | bash -s -- --prerelease
 
 # Pin to a specific tag
-curl -sSL https://andrewtheguy.github.io/beam-rs/install.sh | bash -s 20251210172710
+curl -sSL https://andrewtheguy.github.io/xfer/install.sh | bash -s 20251210172710
 ```
 
 ### Quick Install (Windows)
 
 ```powershell
-irm https://andrewtheguy.github.io/beam-rs/install.ps1 | iex
+irm https://andrewtheguy.github.io/xfer/install.ps1 | iex
 ```
 
 By default the PowerShell installer pulls the latest **stable** release. Use `-PreRelease` for the newest prerelease, or pass an explicit tag to pin to a specific build. Examples (args-only parser):
 
 ```powershell
 # Latest prerelease
-$env:BEAM_INSTALL_ARGS='-PreRelease'; irm https://andrewtheguy.github.io/beam-rs/install.ps1 | iex
+$env:XFER_INSTALL_ARGS='-PreRelease'; irm https://andrewtheguy.github.io/xfer/install.ps1 | iex
 
 # Pin to a specific tag
-$env:BEAM_INSTALL_ARGS='20251210172710'; irm https://andrewtheguy.github.io/beam-rs/install.ps1 | iex
+$env:XFER_INSTALL_ARGS='20251210172710'; irm https://andrewtheguy.github.io/xfer/install.ps1 | iex
 ```
 
 ### From Source
@@ -59,7 +59,7 @@ cargo build --release
 
 ## Usage
 
-Transfers use a **Beam Code** to establish the connection. The code carries
+Transfers use a **Xfer Code** to establish the connection. The code carries
 signaling metadata for the WebRTC session.
 
 ### Online (Nostr signaling)
@@ -69,32 +69,32 @@ unless you specify custom Nostr relay URLs.
 
 ```bash
 # Send a file
-beam-rs-webrtc send /path/to/file
+xfer-webrtc send /path/to/file
 
 # Send a folder (auto-detected and archived)
-beam-rs-webrtc send /path/to/folder
+xfer-webrtc send /path/to/folder
 
 # Use the built-in default relays instead of auto-discovery
-beam-rs-webrtc send --default-relays /path/to/file
+xfer-webrtc send --default-relays /path/to/file
 
 # Use a custom Nostr relay URL (repeat --relay for multiple)
-beam-rs-webrtc send --relay wss://relay1.example.com --relay wss://relay2.example.com /path/to/file
+xfer-webrtc send --relay wss://relay1.example.com --relay wss://relay2.example.com /path/to/file
 ```
 
 Receiving:
 
 ```bash
 # Receive with the code from the sender
-beam-rs-webrtc receive <BEAM_CODE>
+xfer-webrtc receive <XFER_CODE>
 
 # Or prompt for the code interactively
-beam-rs-webrtc receive
+xfer-webrtc receive
 
 # Receive into a specific directory
-beam-rs-webrtc receive <BEAM_CODE> --output /path/to/dir
+xfer-webrtc receive <XFER_CODE> --output /path/to/dir
 
 # Disable resumable transfers (don't save partial downloads)
-beam-rs-webrtc receive <BEAM_CODE> --no-resume
+xfer-webrtc receive <XFER_CODE> --no-resume
 ```
 
 ### Manual Mode (offline signaling)
@@ -105,13 +105,13 @@ path). Offer/answer codes are exchanged by copy-paste.
 
 ```bash
 # Sender
-beam-rs-webrtc send --manual /path/to/file
+xfer-webrtc send --manual /path/to/file
 
 # Receiver (auto-detects the manual offer when you paste it)
-beam-rs-webrtc receive
+xfer-webrtc receive
 ```
 
-The receiver uses the same `receive` command for both modes: paste a beam code
+The receiver uses the same `receive` command for both modes: paste a xfer code
 for a normal Nostr transfer, or paste a manual offer code and it is detected
 automatically.
 
@@ -123,7 +123,7 @@ For protocol details and wire formats, see [ARCHITECTURE.md](docs/ARCHITECTURE.m
 
 ## Security
 
-beam-rs-webrtc relies on WebRTC data channel encryption. Nostr and manual
+xfer-webrtc relies on WebRTC data channel encryption. Nostr and manual
 signaling exchange only connection setup metadata; file bytes flow directly
 peer-to-peer over DTLS.
 

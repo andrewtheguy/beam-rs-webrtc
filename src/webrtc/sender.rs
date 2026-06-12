@@ -11,7 +11,7 @@ use tokio::time::{Duration, timeout};
 use webrtc::ice_transport::ice_candidate::RTCIceCandidateInit;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 
-use crate::core::beam::generate_webrtc_code;
+use crate::core::xfer::generate_webrtc_code;
 use crate::core::transfer::{
     FileHeader, TransferType, format_bytes, run_sender_transfer, send_file_with, send_folder_with,
 };
@@ -102,8 +102,8 @@ where
 /// Display the transfer code to the user with instructions.
 fn display_transfer_code(code_str: &str) {
     eprintln!("\n--- Receiver Instructions ---");
-    eprintln!("Run: beam-rs-webrtc receive");
-    eprintln!("Beam code:\n{}\n", code_str);
+    eprintln!("Run: xfer-webrtc receive");
+    eprintln!("Xfer code:\n{}\n", code_str);
 }
 
 /// Result of WebRTC connection attempt
@@ -272,7 +272,7 @@ async fn transfer_data_webrtc_internal(
     eprintln!("Sender pubkey: {}", signaling.public_key().to_hex());
     eprintln!("Transfer ID: {}", signaling.transfer_id());
 
-    // Generate beam code
+    // Generate xfer code
     let code = generate_webrtc_code(
         signaling.public_key().to_hex(),
         signaling.transfer_id().to_string(),
@@ -305,7 +305,7 @@ async fn transfer_data_webrtc_internal(
             anyhow::bail!(
                 "WebRTC connection failed: {}\n\n\
                  If direct P2P connection is not possible, try:\n  \
-                 - Use manual mode: beam-rs-webrtc send --manual <file>",
+                 - Use manual mode: xfer-webrtc send --manual <file>",
                 reason
             );
         }

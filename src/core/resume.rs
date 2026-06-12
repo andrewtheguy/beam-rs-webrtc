@@ -50,10 +50,10 @@ pub struct ResumeCheck {
 }
 
 /// Get the temp file path for a given final output path.
-/// Format: `<final_path>.beam-rs.partial`
+/// Format: `<final_path>.xfer.partial`
 pub fn temp_file_path(final_path: &Path) -> PathBuf {
     let mut temp_path = final_path.as_os_str().to_owned();
-    temp_path.push(".beam-rs.partial");
+    temp_path.push(".xfer.partial");
     PathBuf::from(temp_path)
 }
 
@@ -561,14 +561,14 @@ mod tests {
         let temp = temp_file_path(path);
         assert_eq!(
             temp,
-            PathBuf::from("/home/user/file.txt.beam-rs.partial")
+            PathBuf::from("/home/user/file.txt.xfer.partial")
         );
     }
 
     #[test]
     fn test_resume_metadata_roundtrip() {
         let dir = tempdir().unwrap();
-        let temp_path = dir.path().join("test.beam-rs.partial");
+        let temp_path = dir.path().join("test.xfer.partial");
 
         let metadata = ResumeMetadata {
             checksum: 0x123456789ABCDEF0,
@@ -591,7 +591,7 @@ mod tests {
     #[test]
     fn test_check_resume_matching() {
         let dir = tempdir().unwrap();
-        let temp_path = dir.path().join("test.beam-rs.partial");
+        let temp_path = dir.path().join("test.xfer.partial");
 
         let metadata = ResumeMetadata {
             checksum: 0xDEADBEEF,
@@ -611,7 +611,7 @@ mod tests {
     #[test]
     fn test_check_resume_mismatched_checksum() {
         let dir = tempdir().unwrap();
-        let temp_path = dir.path().join("test.beam-rs.partial");
+        let temp_path = dir.path().join("test.xfer.partial");
 
         let metadata = ResumeMetadata {
             checksum: 0xDEADBEEF,
@@ -632,7 +632,7 @@ mod tests {
     #[test]
     fn test_finalize_resume_file() {
         let dir = tempdir().unwrap();
-        let temp_path = dir.path().join("test.beam-rs.partial");
+        let temp_path = dir.path().join("test.xfer.partial");
         let final_path = dir.path().join("test_final.bin");
 
         let metadata = ResumeMetadata {

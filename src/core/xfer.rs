@@ -5,16 +5,16 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// Current token format version
 pub const CURRENT_VERSION: u8 = 5;
 
-/// TTL for beam sessions in seconds (1 hour)
+/// TTL for xfer sessions in seconds (1 hour)
 pub const SESSION_TTL_SECS: u64 = 3600;
 
-/// Minimum base64url-encoded beam code length.
+/// Minimum base64url-encoded xfer code length.
 /// A minimal token payload is ~20+ bytes, which base64 encodes to ~30+ characters.
 const MIN_CODE_LENGTH: usize = 30;
 
-/// Beam token containing WebRTC signaling metadata.
+/// Xfer token containing WebRTC signaling metadata.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct BeamToken {
+pub struct XferToken {
     /// Token format version.
     pub version: u8,
     /// Unix timestamp when this token was created (for TTL validation)
@@ -39,8 +39,8 @@ pub fn current_timestamp() -> u64 {
         .as_secs()
 }
 
-/// Generate a beam code for webrtc transfer (WebRTC + Nostr signaling)
-/// Format: base64url(json(BeamToken))
+/// Generate a xfer code for webrtc transfer (WebRTC + Nostr signaling)
+/// Format: base64url(json(XferToken))
 ///
 /// # Arguments
 /// * `sender_pubkey` - Sender's ephemeral Nostr public key for signaling (hex)
@@ -100,7 +100,7 @@ pub fn generate_webrtc_code(
         }
     }
 
-    let token = BeamToken {
+    let token = XferToken {
         version: CURRENT_VERSION,
         created_at: current_timestamp(),
         sender_pubkey,
@@ -110,19 +110,19 @@ pub fn generate_webrtc_code(
         filename,
     };
 
-    let serialized = serde_json::to_vec(&token).context("Failed to serialize beam token")?;
+    let serialized = serde_json::to_vec(&token).context("Failed to serialize xfer token")?;
 
     Ok(URL_SAFE_NO_PAD.encode(&serialized))
 }
 
-/// Validate beam code format without fully parsing it.
+/// Validate xfer code format without fully parsing it.
 /// Performs lightweight checks (empty, invalid characters, minimum length)
 /// without decoding. Returns Ok(()) if the format looks valid.
 pub fn validate_code_format(code: &str) -> Result<()> {
     let code = code.trim();
 
     if code.is_empty() {
-        anyhow::bail!("Beam code cannot be empty");
+        anyhow::bail!("Xfer code cannot be empty");
     }
 
     // Check for invalid characters (base64 URL-safe uses A-Z, a-z, 0-9, -, _)
@@ -132,34 +132,34 @@ pub fn validate_code_format(code: &str) -> Result<()> {
         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
     {
         anyhow::bail!(
-            "Invalid beam code: contains invalid characters. Expected base64url-encoded string."
+            "Invalid xfer code: contains invalid characters. Expected base64url-encoded string."
         );
     }
 
     // Minimum length check: minimal token data
     if code.len() < MIN_CODE_LENGTH {
-        anyhow::bail!("Invalid beam code: too short. Make sure you copied the entire code.");
+        anyhow::bail!("Invalid xfer code: too short. Make sure you copied the entire code.");
     }
 
     Ok(())
 }
 
-/// Parse a beam code to extract the token
-/// Returns a BeamToken containing all transfer metadata
-pub fn parse_code(code: &str) -> Result<BeamToken> {
+/// Parse a xfer code to extract the token
+/// Returns a XferToken containing all transfer metadata
+pub fn parse_code(code: &str) -> Result<XferToken> {
     // Validate format first for better error messages
     validate_code_format(code)?;
 
     let serialized = URL_SAFE_NO_PAD
         .decode(code.trim())
-        .context("Invalid beam code: not valid base64url encoding")?;
+        .context("Invalid xfer code: not valid base64url encoding")?;
 
     if serialized.len() < 10 {
-        anyhow::bail!("Invalid beam code: decoded data too short");
+        anyhow::bail!("Invalid xfer code: decoded data too short");
     }
 
-    let token: BeamToken = serde_json::from_slice(&serialized)
-        .context("Invalid beam code: failed to parse token. Make sure the code is correct.")?;
+    let token: XferToken = serde_json::from_slice(&serialized)
+        .context("Invalid xfer code: failed to parse token. Make sure the code is correct.")?;
 
     // Validate version
     if token.version != CURRENT_VERSION {

@@ -8,7 +8,7 @@ use tokio::time::{Duration, timeout};
 use webrtc::ice_transport::ice_candidate::RTCIceCandidateInit;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 
-use crate::core::beam::parse_code;
+use crate::core::xfer::parse_code;
 use crate::core::transfer::run_receiver_transfer;
 
 use crate::signaling::nostr::{NostrSignaling, SignalingMessage, create_receiver_signaling};
@@ -184,10 +184,10 @@ pub async fn receive_webrtc(
     output_dir: Option<PathBuf>,
     no_resume: bool,
 ) -> Result<()> {
-    eprintln!("Parsing beam code...");
+    eprintln!("Parsing xfer code...");
 
-    // Parse the beam code
-    let token = parse_code(code).context("Failed to parse beam code")?;
+    // Parse the xfer code
+    let token = parse_code(code).context("Failed to parse xfer code")?;
 
     let sender_pubkey_hex = token.sender_pubkey.clone();
     let transfer_id = token.transfer_id.clone();
@@ -218,7 +218,7 @@ pub async fn receive_webrtc(
             anyhow::bail!(
                 "WebRTC connection failed: {}\n\n\
                  If direct P2P connection is not possible, ask the sender to try:\n  \
-                 - Manual mode: beam-rs-webrtc send --manual <file>",
+                 - Manual mode: xfer-webrtc send --manual <file>",
                 reason
             );
         }

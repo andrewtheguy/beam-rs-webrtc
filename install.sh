@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Beam-rs installer for Linux and Mac
-# Downloads latest binary from: https://github.com/andrewtheguy/beam-rs/releases
+# Xfer installer for Linux and Mac
+# Downloads latest binary from: https://github.com/andrewtheguy/xfer/releases
 #
 # Usage: ./install.sh [RELEASE_TAG] [--prerelease]
 # Or set RELEASE_TAG environment variable
@@ -9,7 +9,7 @@
 set -e
 
 REPO_OWNER="andrewtheguy"
-REPO_NAME="beam-rs"
+REPO_NAME="xfer"
 DOWNLOAD_ONLY=false
 PREFER_PRERELEASE=false
 
@@ -229,8 +229,8 @@ detect_arch() {
 
 # Map OS and architecture to binary name
 get_binary_name() {
-    BINARY_PREFIX="beam-rs-webrtc"
-    INSTALL_NAME="beam-rs-webrtc"
+    BINARY_PREFIX="xfer-webrtc"
+    INSTALL_NAME="xfer-webrtc"
 
     case "${OS}-${ARCH}" in
         "linux-amd64")
@@ -412,7 +412,7 @@ download_and_install() {
         if [ -n "$profile" ]; then
             # Profile already has .local/bin configured, just needs reload
             print_warn "${target_dir} is not in your current PATH, but is configured in your profile."
-            print_warn "To use beam-rs now, reload your profile:"
+            print_warn "To use xfer now, reload your profile:"
             echo ""
             echo "    source $profile"
             echo ""
@@ -433,7 +433,7 @@ download_and_install() {
 show_usage() {
     echo "Usage: $0 [OPTIONS] [RELEASE_TAG]"
     echo ""
-    echo "Download and install beam-rs-webrtc binary"
+    echo "Download and install xfer-webrtc binary"
     echo ""
     echo "Options:"
     echo "  --download-only  Download binary to current directory without installing"
@@ -444,7 +444,7 @@ show_usage() {
     echo "  RELEASE_TAG      GitHub release tag to download (default: latest)"
     echo ""
     echo "Examples:"
-    echo "  $0                              # Install latest beam-rs-webrtc"
+    echo "  $0                              # Install latest xfer-webrtc"
     echo "  $0 20251210172710               # Install specific release"
     echo "  $0 --prerelease                 # Install latest prerelease"
     echo "  $0 --download-only              # Download latest to current directory"
@@ -456,9 +456,9 @@ show_usage() {
 # Main installation function
 install() {
     if [ "$DOWNLOAD_ONLY" = true ]; then
-        print_info "Beam-rs downloader"
+        print_info "Xfer downloader"
     else
-        print_info "Beam-rs installer"
+        print_info "Xfer installer"
     fi
     print_info "Release: ${RELEASE_TAG}"
     print_info "Repository: ${REPO_OWNER}/${REPO_NAME}"
@@ -508,9 +508,9 @@ main() {
     parse_args "$@"
 
     if [ "$DOWNLOAD_ONLY" = true ]; then
-        print_info "Starting Beam-rs download..."
+        print_info "Starting Xfer download..."
     else
-        print_info "Starting Beam-rs installation..."
+        print_info "Starting Xfer installation..."
         check_privileges
     fi
 

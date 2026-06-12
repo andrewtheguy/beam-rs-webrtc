@@ -535,7 +535,7 @@ pub async fn publish_relay_list_event(
 /// Uses DEFAULT_NOSTR_RELAYS as bridge relays for discovery.
 ///
 /// # Arguments
-/// * `sender_pubkey` - Sender's public key (from beam code)
+/// * `sender_pubkey` - Sender's public key (from xfer code)
 ///
 /// # Returns
 /// * `Ok(Vec<String>)` - List of relay URLs the sender uses

@@ -1,6 +1,6 @@
 # Common Use Cases & Scenarios
 
-This guide describes common scenarios where `beam-rs-webrtc` shines and which
+This guide describes common scenarios where `xfer-webrtc` shines and which
 mode to use for each.
 
 ## 1. Standard Internet Transfer (Nostr signaling)
@@ -13,12 +13,12 @@ exchanging IP addresses manually.
 - **Command**:
   ```bash
   # Sender
-  beam-rs-webrtc send /path/to/file
+  xfer-webrtc send /path/to/file
 
   # Receiver
-  beam-rs-webrtc receive <BEAM_CODE>
+  xfer-webrtc receive <XFER_CODE>
   ```
-- **Experience**: Share the printed beam code via any channel (chat, paper,
+- **Experience**: Share the printed xfer code via any channel (chat, paper,
   verbal). The Nostr relays only carry signaling; file bytes flow directly
   peer-to-peer.
 
@@ -36,10 +36,10 @@ directly over a LAN or routed private/VPN network.
 - **Command**:
   ```bash
   # Sender
-  beam-rs-webrtc send --manual /path/to/file
+  xfer-webrtc send --manual /path/to/file
 
   # Receiver (paste the manual offer; the mode is detected automatically)
-  beam-rs-webrtc receive
+  xfer-webrtc receive
   ```
 - **Experience**: The sender prints an offer code; the receiver pastes it into
   `receive` (which auto-detects manual mode) and replies with an answer code. The
@@ -54,5 +54,5 @@ directly over a LAN or routed private/VPN network.
 **Solution**: Pass the directory path; it is auto-detected and archived (tar)
 before transfer.
 ```bash
-beam-rs-webrtc send /path/to/folder
+xfer-webrtc send /path/to/folder
 ```

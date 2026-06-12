@@ -1,5 +1,5 @@
 /target
-beam_*
+xfer_*
 .idea/
 build/
 tmp/

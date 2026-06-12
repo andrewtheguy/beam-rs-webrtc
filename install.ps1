@@ -1,10 +1,10 @@
 #!/usr/bin/env pwsh
 
-# Beam-rs installer for Windows
-# Downloads latest binary from: https://github.com/andrewtheguy/beam-rs/releases
+# Xfer installer for Windows
+# Downloads latest binary from: https://github.com/andrewtheguy/xfer/releases
 #
 # Invocation is now argument-parsed only (compat-breaking): flags are read from
-# $args or $env:BEAM_INSTALL_ARGS. Param binding is removed.
+# $args or $env:XFER_INSTALL_ARGS. Param binding is removed.
 
 # Defaults (will be overwritten by fallback arg parser)
 $ReleaseTag   = $null
@@ -15,12 +15,12 @@ $DownloadOnly = $false
 $ErrorActionPreference = "Stop"
 
 $REPO_OWNER = "andrewtheguy"
-$REPO_NAME = "beam-rs"
+$REPO_NAME = "xfer"
 
 # Allow passing flags when the script is piped into Invoke-Expression (iex) where
 # normal PowerShell parameter binding is unavailable. Users can set
-# $env:BEAM_INSTALL_ARGS to a PowerShell-style argument string, e.g.:
-#   $env:BEAM_INSTALL_ARGS='-PreRelease'; irm https://andrewtheguy.github.io/beam-rs/install.ps1 | iex
+# $env:XFER_INSTALL_ARGS to a PowerShell-style argument string, e.g.:
+#   $env:XFER_INSTALL_ARGS='-PreRelease'; irm https://andrewtheguy.github.io/xfer/install.ps1 | iex
 # This keeps the single-line install experience while still supporting flags.
 
 # Function to print colored messages
@@ -189,11 +189,11 @@ function Get-BinaryName {
         exit 1
     }
 
-    return "beam-rs-webrtc-windows-amd64.exe"
+    return "xfer-webrtc-windows-amd64.exe"
 }
 
 function Get-InstallName {
-    return "beam-rs-webrtc.exe"
+    return "xfer-webrtc.exe"
 }
 
 # Parse argument strings (e.g., from environment variables) using PowerShell's tokenizer
@@ -208,7 +208,7 @@ function Parse-ArgString {
     $tokens = [System.Management.Automation.PSParser]::Tokenize($ArgString, [ref]$errors)
 
     if ($errors -and $errors.Count -gt 0) {
-        Print-Warn "Could not parse BEAM_INSTALL_ARGS: $($errors[0].Message)"
+        Print-Warn "Could not parse XFER_INSTALL_ARGS: $($errors[0].Message)"
         return @()
     }
 
@@ -332,9 +332,9 @@ function Install-Binary {
     )
 
     $url = "$BaseUrl/$BinaryName"
-    $tempDir = Join-Path $env:TEMP "beam-rs-install-$(Get-Random)"
+    $tempDir = Join-Path $env:TEMP "xfer-install-$(Get-Random)"
     $tempBinary = Join-Path $tempDir $BinaryName
-    $installDir = Join-Path $env:LOCALAPPDATA "Programs\beam-rs"
+    $installDir = Join-Path $env:LOCALAPPDATA "Programs\xfer"
     $installName = Get-InstallName
     $finalPath = Join-Path $installDir $installName
 
@@ -408,7 +408,7 @@ function Show-Usage {
     Write-Host @"
 Usage: .\install.ps1 [OPTIONS] [RELEASE_TAG]
 
-Download and install beam-rs-webrtc binary
+Download and install xfer-webrtc binary
 
 Options:
   -DownloadOnly  Download binary to current directory without installing
@@ -421,17 +421,17 @@ Arguments:
 
 Environment variables:
   `$env:RELEASE_TAG    Alternative way to specify release tag
-    `$env:BEAM_INSTALL_ARGS  Fallback flags for iex one-liners (e.g. "-PreRelease")
+    `$env:XFER_INSTALL_ARGS  Fallback flags for iex one-liners (e.g. "-PreRelease")
 
 Examples:
-    .\install.ps1                              # Install latest beam-rs-webrtc (args-only parser)
+    .\install.ps1                              # Install latest xfer-webrtc (args-only parser)
     .\install.ps1 20251210172710               # Install specific release
     .\install.ps1 -PreRelease                  # Install latest prerelease
     .\install.ps1 -DownloadOnly                # Download latest to current directory
     .\install.ps1 -DownloadOnly 20251210172710 # Download specific release
     .\install.ps1 -Admin                       # Allow admin installation (not recommended)
     `$env:RELEASE_TAG='latest'; .\install.ps1  # Use environment variable
-    `$env:BEAM_INSTALL_ARGS='-PreRelease'; irm https://andrewtheguy.github.io/beam-rs/install.ps1 | iex
+    `$env:XFER_INSTALL_ARGS='-PreRelease'; irm https://andrewtheguy.github.io/xfer/install.ps1 | iex
 
 Supported platforms: Windows (amd64)
 
@@ -472,10 +472,10 @@ function Start-Installation {
     )
 
     if ($DownloadOnly) {
-        Print-Info "Beam-rs downloader"
+        Print-Info "Xfer downloader"
     }
     else {
-        Print-Info "Beam-rs installer"
+        Print-Info "Xfer installer"
     }
     Print-Info "Release: $Tag"
     Print-Info "Repository: $REPO_OWNER/$REPO_NAME"
@@ -524,13 +524,13 @@ function Main {
         if ($args -and $args.Count -gt 0) {
             $fallbackArgs += $args
         }
-        if ($env:BEAM_INSTALL_ARGS) {
-            $fallbackArgs += (Parse-ArgString -ArgString $env:BEAM_INSTALL_ARGS)
+        if ($env:XFER_INSTALL_ARGS) {
+            $fallbackArgs += (Parse-ArgString -ArgString $env:XFER_INSTALL_ARGS)
         }
         Apply-FallbackArgs -ArgList $fallbackArgs
 
         # Extra guard: honor env flags even if tokenization failed
-        $envArgs = $env:BEAM_INSTALL_ARGS
+        $envArgs = $env:XFER_INSTALL_ARGS
         if ($envArgs) {
             if (-not $PreRelease -and $envArgs -match '(?i)(^|\s)--?prerelease(\s|$)') { $PreRelease = $true }
             if (-not $DownloadOnly -and $envArgs -match '(?i)(^|\s)--?downloadonly(\s|$)') { $DownloadOnly = $true }
@@ -548,10 +548,10 @@ function Main {
     }
 
     if ($DownloadOnly) {
-        Print-Info "Starting Beam-rs download..."
+        Print-Info "Starting Xfer download..."
     }
     else {
-        Print-Info "Starting Beam-rs installation..."
+        Print-Info "Starting Xfer installation..."
     }
 
     # Determine release tag
@@ -583,7 +583,7 @@ try {
 }
 finally {
     # Clean up the fallback args variable to avoid persistence across sessions
-    if (Test-Path env:BEAM_INSTALL_ARGS) {
-        Remove-Item env:BEAM_INSTALL_ARGS -ErrorAction SilentlyContinue
+    if (Test-Path env:XFER_INSTALL_ARGS) {
+        Remove-Item env:XFER_INSTALL_ARGS -ErrorAction SilentlyContinue
     }
 }

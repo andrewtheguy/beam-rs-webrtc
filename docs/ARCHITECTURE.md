@@ -120,7 +120,7 @@ sequenceDiagram
 
 ### Online WebRTC Mode (`beam-rs-webrtc send`)
 - **Transport**: WebRTC DataChannel over DTLS
-- **Discovery**: Nostr relays for SDP/ICE signaling (relays auto-discovered, or set with `--relay` / `--default-relays`)
+- **Discovery**: Nostr relays for SDP/ICE signaling (relays auto-discovered, or custom relay URLs specified with repeatable `--relay`)
 - **NAT Traversal**: ICE with multiple public STUN servers (Google + Cloudflare)
 - **Beam Code**: Transfer ID, sender pubkey, relays, and file metadata
 - **Encryption**: DTLS (WebRTC built-in)

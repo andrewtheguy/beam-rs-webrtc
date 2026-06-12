@@ -48,22 +48,7 @@ directly over a LAN or routed private/VPN network.
 
 ---
 
-## 3. Self-Hosted Signaling (Custom Nostr relays)
-**Scenario**: You require control over the signaling infrastructure and cannot
-rely on auto-discovered public relays due to policy or privacy concerns.
-
-**Solution**: **Custom Relays**
-- **Why**: Point both sides at your own Nostr relay(s). The relays only ever see
-  signaling traffic, never file content.
-- **Command**:
-  ```bash
-  beam-rs-webrtc send --relay wss://my-relay.example.com /path/to/file
-  ```
-  Repeat `--relay` to list multiple relays.
-
----
-
-## 4. Folder Transfer
+## 3. Folder Transfer
 **Scenario**: Sending an entire directory rather than a single file.
 
 **Solution**: Pass the directory path; it is auto-detected and archived (tar)

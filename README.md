@@ -65,7 +65,7 @@ signaling metadata for the WebRTC session.
 ### Online (Nostr signaling)
 
 The default mode uses Nostr relays for signaling. Relays are auto-discovered
-unless you override them.
+unless you specify custom Nostr relay URLs.
 
 ```bash
 # Send a file
@@ -77,7 +77,7 @@ beam-rs-webrtc send /path/to/folder
 # Use the built-in default relays instead of auto-discovery
 beam-rs-webrtc send --default-relays /path/to/file
 
-# Use custom Nostr relay(s) (repeat --relay for multiple)
+# Use a custom Nostr relay URL (repeat --relay for multiple)
 beam-rs-webrtc send --relay wss://relay1.example.com --relay wss://relay2.example.com /path/to/file
 ```
 

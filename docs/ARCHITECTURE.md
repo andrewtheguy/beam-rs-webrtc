@@ -42,7 +42,7 @@ sequenceDiagram
     Note over Receiver: Gathering ICE candidates...
     Receiver-->>Nostr: (async) Publish sealed receiver ICE candidates
 
-    Nostr->>Sender: 8. Receive Offer (open with PSK; drop if it fails)
+    Nostr->>Sender: 8. Receive Offer (open with PSK, drop if it fails)
     Nostr-->>Sender: (async) Receive Receiver's ICE candidates
 
     Sender->>Sender: 9. Set remote description, create SDP answer
@@ -52,7 +52,7 @@ sequenceDiagram
     Note over Sender: Gathering ICE candidates...
     Sender-->>Nostr: (async) Publish sealed sender ICE candidates
 
-    Nostr->>Receiver: 11. Receive Answer (open with PSK; drop if it fails)
+    Nostr->>Receiver: 11. Receive Answer (open with PSK, drop if it fails)
     Nostr-->>Receiver: (async) Receive Sender's ICE candidates
 
     Note over Sender,Receiver: ICE connectivity checks, WebRTC connection established

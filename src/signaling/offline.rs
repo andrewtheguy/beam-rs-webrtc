@@ -11,7 +11,7 @@ use std::io::{BufRead, ErrorKind, Write};
 use std::time::{SystemTime, UNIX_EPOCH};
 use webrtc::ice_transport::ice_candidate::RTCIceCandidate;
 
-use crate::core::beam::SESSION_TTL_SECS;
+use crate::core::xfer::SESSION_TTL_SECS;
 
 use crate::signaling::nostr::IceCandidatePayload;
 
@@ -19,10 +19,10 @@ use crate::signaling::nostr::IceCandidatePayload;
 const LINE_WIDTH: usize = 76;
 
 /// Marker strings for manual signaling payloads (SSH-key style)
-const OFFER_BEGIN_MARKER: &str = "-----BEGIN BEAM WEBRTC OFFER-----";
-const OFFER_END_MARKER: &str = "-----END BEAM WEBRTC OFFER-----";
-const ANSWER_BEGIN_MARKER: &str = "-----BEGIN BEAM WEBRTC ANSWER-----";
-const ANSWER_END_MARKER: &str = "-----END BEAM WEBRTC ANSWER-----";
+const OFFER_BEGIN_MARKER: &str = "-----BEGIN XFER WEBRTC OFFER-----";
+const OFFER_END_MARKER: &str = "-----END XFER WEBRTC OFFER-----";
+const ANSWER_BEGIN_MARKER: &str = "-----BEGIN XFER WEBRTC ANSWER-----";
+const ANSWER_END_MARKER: &str = "-----END XFER WEBRTC ANSWER-----";
 
 /// Get current Unix timestamp in seconds.
 ///
@@ -126,7 +126,7 @@ pub fn display_offer_json(offer: &OfflineOffer) -> Result<()> {
 
     println!();
     println!("=== SENDER STEP 1: Ask the receiver to run ===");
-    println!("  beam-rs-webrtc receive");
+    println!("  xfer-webrtc receive");
     println!();
     println!("=== SENDER STEP 2: Press Enter to show the offer code ===");
     std::io::stdout().flush()?;
@@ -396,7 +396,7 @@ fn decode_checksum_payload(encoded: &str) -> Result<String> {
 
 /// Receiver input, auto-detected from what the user provides.
 pub enum ReceiveInput {
-    /// An automatic beam code (single line, Nostr signaling).
+    /// An automatic xfer code (single line, Nostr signaling).
     Code(String),
     /// A manual copy/paste offer (wrapped in BEGIN/END markers).
     Manual(Box<OfflineOffer>),
@@ -405,9 +405,9 @@ pub enum ReceiveInput {
 /// Read receiver input from stdin and auto-detect the transfer mode.
 ///
 /// A manual offer is recognized by its leading BEGIN marker; anything else is
-/// treated as an automatic beam code.
+/// treated as an automatic xfer code.
 pub fn read_code_or_offer() -> Result<ReceiveInput> {
-    println!("Enter the sender's beam code, or paste the manual offer code");
+    println!("Enter the sender's xfer code, or paste the manual offer code");
     println!("(including the {OFFER_BEGIN_MARKER} / {OFFER_END_MARKER} markers):");
     std::io::stdout().flush().context("Failed to flush stdout")?;
 
@@ -427,7 +427,7 @@ pub fn read_code_or_offer() -> Result<ReceiveInput> {
         }
     };
 
-    // Not a manual offer marker -> treat the line as a beam code.
+    // Not a manual offer marker -> treat the line as a xfer code.
     if first.trim() != OFFER_BEGIN_MARKER {
         return Ok(ReceiveInput::Code(first.trim().to_string()));
     }

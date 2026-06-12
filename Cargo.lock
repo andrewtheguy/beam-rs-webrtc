@@ -235,37 +235,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
-name = "beam-rs-webrtc"
-version = "0.0.4"
-dependencies = [
- "anyhow",
- "base64",
- "bytes",
- "clap",
- "crc32fast",
- "env_logger",
- "fs4",
- "futures",
- "hex",
- "log",
- "nostr-sdk",
- "rand 0.8.6",
- "reqwest",
- "rustyline",
- "serde",
- "serde_json",
- "tar",
- "tempfile",
- "tokio",
- "tokio-tungstenite 0.21.0",
- "tokio-util",
- "uuid",
- "walkdir",
- "webrtc",
- "xxhash-rust",
-]
-
-[[package]]
 name = "bech32"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3902,6 +3871,37 @@ checksum = "32e45ad4206f6d2479085147f02bc2ef834ac85886624a23575ae137c8aa8156"
 dependencies = [
  "libc",
  "rustix 1.1.4",
+]
+
+[[package]]
+name = "xfer-webrtc"
+version = "0.0.4"
+dependencies = [
+ "anyhow",
+ "base64",
+ "bytes",
+ "clap",
+ "crc32fast",
+ "env_logger",
+ "fs4",
+ "futures",
+ "hex",
+ "log",
+ "nostr-sdk",
+ "rand 0.8.6",
+ "reqwest",
+ "rustyline",
+ "serde",
+ "serde_json",
+ "tar",
+ "tempfile",
+ "tokio",
+ "tokio-tungstenite 0.21.0",
+ "tokio-util",
+ "uuid",
+ "walkdir",
+ "webrtc",
+ "xxhash-rust",
 ]
 
 [[package]]

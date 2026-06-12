@@ -1,4 +1,4 @@
-//! beam-rs-webrtc: WebRTC transport for peer-to-peer file transfer
+//! xfer-webrtc: WebRTC transport for peer-to-peer file transfer
 //!
 //! This crate provides file transfer using WebRTC data channels with
 //! Nostr relays for signaling. It supports both online (Nostr) and
@@ -10,12 +10,12 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-use beam_rs_webrtc::core::transfer::is_interrupted;
-use beam_rs_webrtc::signaling::offline::{self, ReceiveInput};
-use beam_rs_webrtc::webrtc;
+use xfer_webrtc::core::transfer::is_interrupted;
+use xfer_webrtc::signaling::offline::{self, ReceiveInput};
+use xfer_webrtc::webrtc;
 
 #[derive(Parser)]
-#[command(name = "beam-rs-webrtc")]
+#[command(name = "xfer-webrtc")]
 #[command(about = "Secure file transfer using WebRTC for peer-to-peer connectivity")]
 #[command(version)]
 struct Cli {
@@ -49,10 +49,10 @@ enum Commands {
 
     /// Receive a file using WebRTC transport
     ///
-    /// Automatically detects whether the input is a Nostr beam code or a
+    /// Automatically detects whether the input is a Nostr xfer code or a
     /// manual copy/paste offer.
     Receive {
-        /// Beam code from sender (will prompt if not provided)
+        /// Xfer code from sender (will prompt if not provided)
         code: Option<String>,
 
         /// Output directory (defaults to current directory)
@@ -122,7 +122,7 @@ async fn async_main() -> Result<()> {
             output,
             no_resume,
         } => {
-            // A beam code given on the command line is always an automatic
+            // A xfer code given on the command line is always an automatic
             // transfer; otherwise read from stdin and auto-detect the mode.
             let input = match code {
                 Some(c) => ReceiveInput::Code(c.trim().to_string()),
@@ -132,7 +132,7 @@ async fn async_main() -> Result<()> {
             match input {
                 ReceiveInput::Code(code) => {
                     if code.is_empty() {
-                        anyhow::bail!("Beam code is required");
+                        anyhow::bail!("Xfer code is required");
                     }
                     webrtc::receive_webrtc(&code, output, no_resume).await?;
                 }

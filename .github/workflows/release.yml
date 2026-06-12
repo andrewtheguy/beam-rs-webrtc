@@ -76,13 +76,13 @@ jobs:
         run: cargo build --release --all-features --target ${{ matrix.target }}
 
       - name: Rename WebRTC Binary
-        run: mv target/${{ matrix.target }}/release/beam-rs-webrtc target/release/beam-rs-webrtc-${{ matrix.suffix }}
+        run: mv target/${{ matrix.target }}/release/xfer-webrtc target/release/xfer-webrtc-${{ matrix.suffix }}
 
       - name: Upload WebRTC release artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-webrtc-${{ matrix.suffix }}
-          path: target/release/beam-rs-webrtc-${{ matrix.suffix }}
+          path: target/release/xfer-webrtc-${{ matrix.suffix }}
 
   build-macos:
     needs: setup
@@ -105,13 +105,13 @@ jobs:
         run: cargo build --release --all-features --target ${{ matrix.target }}
 
       - name: Rename WebRTC Binary
-        run: mv target/${{ matrix.target }}/release/beam-rs-webrtc target/release/beam-rs-webrtc-${{ matrix.suffix }}
+        run: mv target/${{ matrix.target }}/release/xfer-webrtc target/release/xfer-webrtc-${{ matrix.suffix }}
 
       - name: Upload WebRTC release artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-webrtc-${{ matrix.suffix }}
-          path: target/release/beam-rs-webrtc-${{ matrix.suffix }}
+          path: target/release/xfer-webrtc-${{ matrix.suffix }}
 
   build-windows:
     needs: setup
@@ -133,13 +133,13 @@ jobs:
         run: cargo build --release --all-features --target ${{ env.TARGET }}
 
       - name: Rename WebRTC Binary
-        run: move target\${{ env.TARGET }}\release\beam-rs-webrtc.exe target\release\beam-rs-webrtc-${{ env.SUFFIX }}.exe
+        run: move target\${{ env.TARGET }}\release\xfer-webrtc.exe target\release\xfer-webrtc-${{ env.SUFFIX }}.exe
 
       - name: Upload WebRTC release artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-webrtc-${{ env.SUFFIX }}
-          path: target/release/beam-rs-webrtc-${{ env.SUFFIX }}.exe
+          path: target/release/xfer-webrtc-${{ env.SUFFIX }}.exe
 
   create-release:
     needs: [setup, build-linux, build-macos, build-windows]

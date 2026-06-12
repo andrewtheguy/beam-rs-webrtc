@@ -285,7 +285,7 @@ pub fn extract_tar_archive_returning_reader<R: Read>(
     }
 
     // Verify directory is writable by creating and removing a temp file
-    let test_file = extract_dir.join(".beam_write_test");
+    let test_file = extract_dir.join(".xfer_write_test");
     std::fs::File::create(&test_file).with_context(|| {
         format!(
             "Extraction directory is not writable: {}",
@@ -451,7 +451,7 @@ pub fn get_extraction_dir(output_dir: Option<PathBuf>) -> PathBuf {
                 .expect("System clock is set before Unix epoch")
                 .as_secs();
             let random_id: u32 = rand::random();
-            PathBuf::from(format!("beam_{}_{:08x}", timestamp, random_id))
+            PathBuf::from(format!("xfer_{}_{:08x}", timestamp, random_id))
         }
     }
 }

@@ -1,18 +1,18 @@
-# Beam-rs-webrtc Architecture
+# Xfer-webrtc Architecture
 
 ## Overview
 
-This document provides a detailed walkthrough of the beam-rs-webrtc
+This document provides a detailed walkthrough of the xfer-webrtc
 implementation.
 
-beam-rs-webrtc transfers files over a direct WebRTC DataChannel. It supports two
+xfer-webrtc transfers files over a direct WebRTC DataChannel. It supports two
 signaling methods for establishing that channel:
 
 1. **Online (Nostr signaling)** — SDP offers/answers and ICE candidates are
-   exchanged through Nostr relays via `beam-rs-webrtc send` / `receive`.
+   exchanged through Nostr relays via `xfer-webrtc send` / `receive`.
 2. **Manual (offline signaling)** — the offer and answer payloads are exchanged
-   by copy-paste via `beam-rs-webrtc send --manual`; the receiver uses the same
-   `beam-rs-webrtc receive`, which auto-detects a pasted manual offer.
+   by copy-paste via `xfer-webrtc send --manual`; the receiver uses the same
+   `xfer-webrtc receive`, which auto-detects a pasted manual offer.
 
 In both cases the file bytes flow directly peer-to-peer; the signaling method
 only affects how the two peers find each other and negotiate the connection.
@@ -32,12 +32,12 @@ sequenceDiagram
     Sender->>Nostr: 3. Connect & Subscribe
     Sender->>Nostr: 4. Publish Offer (SDP)
 
-    Note over Sender: Display beam code (transfer-id, pubkey, relays, metadata)
+    Note over Sender: Display xfer code (transfer-id, pubkey, relays, metadata)
     Note over Sender: Gathering ICE candidates...
 
     Sender-->>Nostr: (async) Publish ICE candidates as gathered
 
-    Receiver->>Nostr: 5. Connect & Subscribe (using beam code)
+    Receiver->>Nostr: 5. Connect & Subscribe (using xfer code)
     Nostr->>Receiver: 6. Receive Offer (SDP)
     Nostr-->>Receiver: (async) Receive Sender's ICE candidates
 
@@ -118,14 +118,14 @@ sequenceDiagram
 
 ## Connection Modes
 
-### Online WebRTC Mode (`beam-rs-webrtc send`)
+### Online WebRTC Mode (`xfer-webrtc send`)
 - **Transport**: WebRTC DataChannel over DTLS
 - **Discovery**: Nostr relays for SDP/ICE signaling (relays auto-discovered, or custom relay URLs specified with repeatable `--relay`)
 - **NAT Traversal**: ICE with multiple public STUN servers (Google + Cloudflare)
-- **Beam Code**: Transfer ID, sender pubkey, relays, and file metadata
+- **Xfer Code**: Transfer ID, sender pubkey, relays, and file metadata
 - **Encryption**: DTLS (WebRTC built-in)
 
-### Manual WebRTC Mode (`beam-rs-webrtc send --manual`)
+### Manual WebRTC Mode (`xfer-webrtc send --manual`)
 - **Transport**: WebRTC DataChannel over DTLS
 - **Discovery**: Manual copy/paste offer and answer payloads containing SDP and ICE candidates
 - **NAT Traversal**: ICE with multiple public STUN servers (Google + Cloudflare)
@@ -142,7 +142,7 @@ sequenceDiagram
 
 ### TTL (Time-To-Live) Validation
 
-All beam codes and manual signaling offers include a creation timestamp and are
+All xfer codes and manual signaling offers include a creation timestamp and are
 validated against a TTL to prevent replay attacks and stale session
 establishment.
 
@@ -152,7 +152,7 @@ establishment.
 - **Clock Skew**: Allows up to 60 seconds into the future to handle minor clock drift
 
 **Validation Points:**
-1. **Beam Codes** (online WebRTC via Nostr): Validated in `parse_code()` before connection.
+1. **Xfer Codes** (online WebRTC via Nostr): Validated in `parse_code()` before connection.
 2. **Manual Signaling Offers** (`send --manual` / `receive`): Validated in `read_code_or_offer()` before the WebRTC handshake.
 
 **Error Messages:**
@@ -189,7 +189,7 @@ Control signals are sent over the same length-prefixed framing as data:
 Resumable state is only used for **file** transfers (not folders) when resume is enabled.
 
 - Receiver writes incoming bytes to a resume temp file in the target directory:
-  `<final_path>.beam-rs.partial`
+  `<final_path>.xfer.partial`
 - That temp file contains a fixed-size metadata header (checksum, expected size,
   bytes received, filename) followed by file data.
 
@@ -199,7 +199,7 @@ When the transfer completes successfully:
    `<final_path>.partial` in the same directory.
 2. Receiver syncs the staging file and parent directory.
 3. Receiver atomically renames staging to the final destination path.
-4. Receiver removes `<final_path>.beam-rs.partial`.
+4. Receiver removes `<final_path>.xfer.partial`.
 
 Keeping both temp/staging files in the same directory ensures the final rename
 is on the same filesystem, which enables atomic replacement semantics.

@@ -1,4 +1,4 @@
-//! Signaling: beam-code/Nostr protocol encoding plus WebRTC transport signaling.
+//! Signaling: xfer-code/Nostr protocol encoding plus WebRTC transport signaling.
 
 pub mod nostr_protocol;
 

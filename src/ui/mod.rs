@@ -1,4 +1,4 @@
-//! User-interface output abstraction shared across all beam-rs transports.
+//! User-interface output abstraction shared across all xfer transports.
 //!
 //! Historically the transfer code wrote status, progress, and prompts directly
 //! with `eprintln!`/`println!` and blocking `stdin` reads. That hard-coded a
@@ -79,7 +79,7 @@ pub trait UiSink: Send + Sync {
     /// Finish the current progress indicator (was the trailing `eprintln!()`).
     fn progress_end(&self);
 
-    /// Display the sender's beam code.
+    /// Display the sender's xfer code.
     fn show_code(&self, code: &str);
 
     /// Hint the current transfer [`Phase`]. Default: ignore.
@@ -140,7 +140,7 @@ impl UiSink for PlainSink {
     }
 
     fn show_code(&self, code: &str) {
-        println!("\n🔮 Beam code:\n{}\n", code);
+        println!("\n🔮 Xfer code:\n{}\n", code);
     }
 
     fn prompt_file_exists(&self, path: &Path) -> Result<FileExistsChoice> {
@@ -168,7 +168,7 @@ impl UiSink for PlainSink {
         println!("\n⚠️  Warning: {} is large ({}).", name, size_str);
         println!("Folder transfers are NOT resumable. If interrupted, you must start over.");
         println!(
-            "Large folders are recommended for local connections only (beam-rs send --local-only)."
+            "Large folders are recommended for local connections only (xfer send --local-only)."
         );
         print!("Continue anyway? [y/N]: ");
         std::io::stdout().flush()?;

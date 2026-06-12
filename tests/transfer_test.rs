@@ -1,4 +1,4 @@
-use beam_rs_webrtc::core::transfer::{
+use xfer_webrtc::core::transfer::{
     CHUNK_SIZE, ControlSignal, FileHeader, TransferType, recv_chunk, recv_control, recv_header,
     send_ack, send_chunk, send_header, send_proceed, send_resume,
 };

@@ -1,15 +1,15 @@
 [package]
-name = "beam-rs-webrtc"
+name = "xfer-webrtc"
 version = "0.0.4"
 edition = "2024"
 publish = false
 
 [lib]
-name = "beam_rs_webrtc"
+name = "xfer_webrtc"
 path = "src/lib.rs"
 
 [[bin]]
-name = "beam-rs-webrtc"
+name = "xfer-webrtc"
 path = "src/main.rs"
 
 [dependencies]

@@ -54,7 +54,7 @@ $env:BEAM_INSTALL_ARGS='20251210172710'; irm https://andrewtheguy.github.io/beam
 ### From Source
 
 ```bash
-cargo build --release -p beam-rs-webrtc
+cargo build --release
 ```
 
 ## Usage
